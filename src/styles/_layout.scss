@@ -1,0 +1,116 @@
+@use "variables" as *;
+
+.app-shell {
+  display: grid;
+  grid-template-columns: $sidebar-width 1fr;
+  grid-template-rows: $topbar-height 1fr;
+  grid-template-areas:
+    "topbar topbar"
+    "sidebar content";
+  height: 100vh;
+}
+
+// Topbar / header
+.topbar {
+  grid-area: topbar;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 $space-5;
+  background: $color-surface;
+  border-bottom: 1px solid $color-border;
+}
+
+.topbar__brand {
+  display: flex;
+  align-items: baseline;
+  gap: $space-2;
+}
+
+.topbar__logo {
+  color: $color-accent;
+  font-size: $font-size-lg;
+}
+
+.topbar__title {
+  font-size: $font-size-lg;
+  font-weight: 600;
+}
+
+.topbar__subtitle {
+  color: $color-text-muted;
+  font-size: $font-size-sm;
+}
+
+.topbar__actions {
+  display: flex;
+  align-items: center;
+  gap: $space-3;
+}
+
+.topbar__button {
+  background: $color-surface-alt;
+  color: $color-text;
+  border: 1px solid $color-border;
+  border-radius: $radius;
+  padding: $space-1 $space-3;
+  font-size: $font-size-sm;
+  cursor: pointer;
+
+  &:hover {
+    border-color: $color-accent;
+  }
+}
+
+// Sidebar
+.sidebar {
+  grid-area: sidebar;
+  background: $color-surface;
+  border-right: 1px solid $color-border;
+  padding: $space-3;
+  overflow-y: auto;
+}
+
+.sidebar__nav {
+  display: flex;
+  flex-direction: column;
+  gap: $space-1;
+}
+
+.sidebar__link {
+  padding: $space-2 $space-3;
+  border-radius: $radius;
+  color: $color-text-muted;
+  font-size: $font-size-base;
+
+  &:hover {
+    background: $color-surface-alt;
+    color: $color-text;
+  }
+
+  &--active {
+    background: $color-surface-alt;
+    color: $color-text;
+    box-shadow: inset 3px 0 0 $color-accent;
+  }
+}
+
+// Content area
+.app-shell__content {
+  grid-area: content;
+  overflow-y: auto;
+  padding: $space-5;
+}
+
+.view__header {
+  margin-bottom: $space-4;
+}
+
+.view__title {
+  font-size: $font-size-xl;
+}
+
+.view__placeholder {
+  color: $color-text-muted;
+  max-width: 60ch;
+}

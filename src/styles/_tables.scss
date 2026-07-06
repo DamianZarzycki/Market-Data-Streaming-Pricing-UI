@@ -1,0 +1,46 @@
+@use "variables" as *;
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: $font-size-base;
+}
+
+.data-table th,
+.data-table td {
+  padding: $space-2 $space-3;
+  border-bottom: 1px solid $color-border;
+  text-align: left;
+}
+
+.data-table thead th {
+  position: sticky;
+  top: 0;
+  background: $color-surface;
+  color: $color-text-muted;
+  font-weight: 600;
+  z-index: 1;
+}
+
+// Right-align numeric columns for financial readability.
+.data-table td.is-numeric,
+.data-table th.is-numeric {
+  text-align: right;
+  font-family: $font-mono;
+  font-variant-numeric: tabular-nums;
+}
+
+.pnl-positive {
+  color: $color-positive;
+}
+
+.pnl-negative {
+  color: $color-negative;
+}
+
+// Compact density is toggled from the topbar via the shell data attribute.
+.app-shell[data-density="compact"] .data-table th,
+.app-shell[data-density="compact"] .data-table td {
+  padding: $space-1 $space-2;
+  font-size: $font-size-sm;
+}
