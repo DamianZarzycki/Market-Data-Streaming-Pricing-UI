@@ -1,13 +1,17 @@
 export type AssetClass =
   | "EQUITY"
   | "FX"
-  | "EUROPEAN_OPTION"
+  | "OPTION"
   | "IRS"
   | string;
 
 export type LiveStatus = "LIVE" | "STALE" | "ERROR";
 
 export type ServiceHealth = "UP" | "DOWN" | "DEGRADED";
+
+export type TradeStatus = "ACTIVE" | "CLOSED" | "CANCELLED" | string;
+
+export type TradeSide = "BUY" | "SELL" | string;
 
 export interface ServiceStatus {
   service: string;
@@ -17,6 +21,7 @@ export interface ServiceStatus {
   errorCount?: number;
 }
 
+/** @deprecated Prefer MarketTickRow from marketDataTypes — SSE payloads are heterogeneous. */
 export interface MarketTick {
   symbol: string;
   price: number;
@@ -51,12 +56,20 @@ export interface Book {
 export interface Trade {
   trade_id: string;
   book_id: string;
+  book_name?: string;
   asset_class: AssetClass;
-  side?: string;
+  symbol?: string;
+  side?: TradeSide;
   quantity?: number;
+  trade_price?: number;
   currency?: string;
-  status?: string;
+  status?: TradeStatus;
   created_at?: string;
+  realized_pnl?: number;
+  unrealized_pnl?: number;
+  alpha?: number;
+  beta?: number;
+  valuation_status?: LiveStatus;
 }
 
 export interface AuditLog {
@@ -66,4 +79,12 @@ export interface AuditLog {
   entity_type?: string;
   correlation_id?: string | null;
   created_at?: string;
+}
+
+export interface PortfolioSummary {
+  realized_pnl: number;
+  unrealized_pnl: number;
+  total_pnl: number;
+  alpha: number;
+  beta: number;
 }

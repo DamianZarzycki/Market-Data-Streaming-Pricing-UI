@@ -1,0 +1,191 @@
+import { useLayoutEffect, useMemo, useRef } from "react";
+import {
+  AreaSeries,
+  ColorType,
+  createChart,
+  type IChartApi,
+  type ISeriesApi,
+  type UTCTimestamp,
+} from "lightweight-charts";
+import type { PricePoint } from "@/services/marketDataTypes";
+import { formatPrice } from "@/views/MarketDataView/formatters";
+
+interface PriceSparklineProps {
+  points: PricePoint[];
+  currency?: string | null;
+  height?: number;
+}
+
+export function PriceSparkline({
+  points,
+  currency,
+  height = 160,
+}: PriceSparklineProps) {
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const chartRef = useRef<IChartApi | null>(null);
+  const seriesRef = useRef<ISeriesApi<"Area"> | null>(null);
+
+  const chartData = useMemo(() => toChartData(points), [points]);
+  const canRenderChart = chartData.length >= 2;
+
+  const stats = useMemo(() => {
+    if (points.length === 0) return null;
+    const prices = points.map((p) => p.price);
+    return {
+      min: Math.min(...prices),
+      max: Math.max(...prices),
+      last: points[points.length - 1].price,
+    };
+  }, [points]);
+
+  // useLayoutEffect so the chart is created after the container is in the DOM
+  // (canRenderChart may flip from false → true after the first ticks arrive).
+  useLayoutEffect(() => {
+    if (!canRenderChart) {
+      return;
+    }
+
+    const el = containerRef.current;
+    if (!el) return;
+
+    const chart = createChart(el, {
+      width: Math.max(el.clientWidth, 240),
+      height,
+      layout: {
+        background: { type: ColorType.Solid, color: "#1c2330" },
+        textColor: "#8b949e",
+        fontFamily: "JetBrains Mono, SFMono-Regular, Menlo, monospace",
+        fontSize: 11,
+      },
+      grid: {
+        vertLines: { color: "rgba(42, 49, 60, 0.85)" },
+        horzLines: { color: "rgba(42, 49, 60, 0.85)" },
+      },
+      rightPriceScale: {
+        borderVisible: false,
+        scaleMargins: { top: 0.15, bottom: 0.1 },
+      },
+      timeScale: {
+        borderVisible: false,
+        timeVisible: true,
+        secondsVisible: true,
+      },
+      crosshair: {
+        vertLine: {
+          color: "rgba(59, 130, 246, 0.45)",
+          labelBackgroundColor: "#3b82f6",
+        },
+        horzLine: {
+          color: "rgba(59, 130, 246, 0.45)",
+          labelBackgroundColor: "#3b82f6",
+        },
+      },
+      handleScroll: false,
+      handleScale: false,
+    });
+
+    const series = chart.addSeries(AreaSeries, {
+      lineColor: "#3b82f6",
+      topColor: "rgba(59, 130, 246, 0.35)",
+      bottomColor: "rgba(59, 130, 246, 0.02)",
+      lineWidth: 2,
+      priceLineVisible: false,
+      lastValueVisible: true,
+    });
+
+    series.setData(chartData);
+    chart.timeScale().fitContent();
+
+    chartRef.current = chart;
+    seriesRef.current = series;
+
+    const ro = new ResizeObserver((entries) => {
+      const width = entries[0]?.contentRect.width;
+      if (width && width > 0) {
+        chart.applyOptions({ width, height });
+      }
+    });
+    ro.observe(el);
+
+    return () => {
+      ro.disconnect();
+      chart.remove();
+      chartRef.current = null;
+      seriesRef.current = null;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- recreate only when chart becomes eligible / height changes
+  }, [canRenderChart, height]);
+
+  useLayoutEffect(() => {
+    if (!canRenderChart) return;
+    const series = seriesRef.current;
+    const chart = chartRef.current;
+    if (!series || !chart) return;
+
+    series.setData(chartData);
+    chart.timeScale().fitContent();
+  }, [chartData, canRenderChart]);
+
+  if (points.length === 0) {
+    return (
+      <div className="flex h-[160px] items-center justify-center rounded border border-border bg-surface-alt text-sm text-text-muted">
+        No price history yet
+      </div>
+    );
+  }
+
+  if (!canRenderChart) {
+    return (
+      <div className="flex h-[160px] flex-col items-center justify-center gap-1 rounded border border-border bg-surface-alt">
+        <span className="font-mono text-lg tabular-nums">
+          {formatPrice(points[0].price, currency)}
+        </span>
+        <span className="text-sm text-text-muted">Waiting for more ticks…</span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded border border-border bg-surface-alt px-2 py-2">
+      <div
+        ref={containerRef}
+        className="w-full min-w-0"
+        style={{ height, minHeight: height }}
+        role="img"
+        aria-label="Price history chart"
+      />
+      {stats ? (
+        <div className="mt-1 flex items-center justify-between px-1 text-sm text-text-muted">
+          <span className="font-mono tabular-nums">
+            {formatPrice(stats.min, currency)}
+          </span>
+          <span className="font-mono tabular-nums text-text">
+            {formatPrice(stats.last, currency)}
+          </span>
+          <span className="font-mono tabular-nums">
+            {formatPrice(stats.max, currency)}
+          </span>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+/**
+ * Convert ms timestamps to ascending UTC seconds.
+ * Collisions in the same second are bumped (+1s) so we never drop points.
+ */
+function toChartData(points: PricePoint[]) {
+  let lastTime = Number.NEGATIVE_INFINITY;
+  return points.map((point) => {
+    let time = Math.floor(point.t / 1000);
+    if (time <= lastTime) {
+      time = lastTime + 1;
+    }
+    lastTime = time;
+    return {
+      time: time as UTCTimestamp,
+      value: point.price,
+    };
+  });
+}

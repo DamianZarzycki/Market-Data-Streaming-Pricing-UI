@@ -5,12 +5,12 @@ interface PlaceholderViewProps {
 
 export function PlaceholderView({ title, description }: PlaceholderViewProps) {
   return (
-    <section className="view">
-      <header className="view__header">
-        <h1 className="view__title">{title}</h1>
+    <section className="min-h-0 flex-1 overflow-y-auto">
+      <header className="mb-4">
+        <h1 className="text-xl font-semibold">{title}</h1>
       </header>
-      <div className="view__body">
-        <p className="view__placeholder">{description}</p>
+      <div>
+        <p className="max-w-[60ch] text-text-muted">{description}</p>
       </div>
     </section>
   );

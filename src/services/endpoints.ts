@@ -36,7 +36,9 @@ export const endpoints = {
     remove: (bookId: string) => `${services.books}/books/${bookId}`,
   },
   blotter: {
-    booksPnl: `${services.blotter}/books/pnl`,
+    booksSummary: `${services.blotter}/books/summary`,
+    /** @deprecated Use booksSummary — backend path is /books/summary */
+    booksPnl: `${services.blotter}/books/summary`,
     trades: `${services.blotter}/trades`,
     tradeById: (tradeId: string) => `${services.blotter}/trades/${tradeId}`,
     tradeValuations: (tradeId: string) =>

@@ -19,7 +19,7 @@ interface UseSseStreamResult<T> {
  */
 export function useSseStream<T>(
   url: string,
-  { eventName, maxEvents = 500, enabled = true }: UseSseStreamOptions = {},
+  { eventName, maxEvents = 50, enabled = true }: UseSseStreamOptions = {},
 ): UseSseStreamResult<T> {
   const [events, setEvents] = useState<T[]>([]);
   const [status, setStatus] = useState<SseStatus>("CONNECTING");
