@@ -47,6 +47,7 @@ export interface Valuation {
 export interface Book {
   book_id: string;
   name: string;
+  description?: string | null;
   expected_asset_class: AssetClass;
   is_active: boolean;
   realized_pnl?: number;

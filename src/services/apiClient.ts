@@ -30,10 +30,16 @@ async function request<T>(url: string, init?: RequestInit): Promise<T> {
   const body = await parseBody(response);
 
   if (!response.ok) {
+    const record =
+      typeof body === "object" && body !== null
+        ? (body as Record<string, unknown>)
+        : null;
     const message =
-      typeof body === "object" && body !== null && "error" in body
-        ? String((body as Record<string, unknown>).error)
-        : `Request failed with status ${response.status}`;
+      record && typeof record.message === "string"
+        ? record.message
+        : record && typeof record.error === "string"
+          ? record.error
+          : `Request failed with status ${response.status}`;
     throw new ApiError(message, response.status, body);
   }
 

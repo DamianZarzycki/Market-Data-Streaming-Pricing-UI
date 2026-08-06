@@ -33,6 +33,7 @@ export function mapBookDto(dto: BlotterBookDto): Book {
   return {
     book_id: dto.book_id,
     name: dto.name,
+    description: dto.description ?? null,
     expected_asset_class: dto.expected_asset_class,
     is_active: dto.is_active,
     realized_pnl: asNumber(dto.realized_pnl),

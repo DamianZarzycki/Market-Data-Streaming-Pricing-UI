@@ -47,11 +47,17 @@ export const endpoints = {
       `${services.blotter}/trades/${tradeId}/audit-logs`,
   },
   tradeGeneration: {
+    health: `${services.tradeGeneration}/health`,
     status: `${services.tradeGeneration}/status`,
-    events: `${services.tradeGeneration}/events`,
+    start: `${services.tradeGeneration}/start`,
+    stop: `${services.tradeGeneration}/stop`,
+    generateOnce: `${services.tradeGeneration}/generate-once`,
+    generateBatch: `${services.tradeGeneration}/generate-batch`,
   },
   tradeAction: {
+    health: `${services.tradeAction}/health`,
     status: `${services.tradeAction}/status`,
-    events: `${services.tradeAction}/events`,
+    tradeActions: `${services.tradeAction}/trade-actions`,
+    tradeActionsBatch: `${services.tradeAction}/trade-actions/batch`,
   },
 } as const;
