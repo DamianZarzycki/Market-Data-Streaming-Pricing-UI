@@ -12,6 +12,11 @@ import type {
   Valuation,
 } from "@/domain/types";
 import { useBlotterLiveValuations } from "@/hooks/useBlotterLiveValuations";
+import { useDensity } from "@/layout/DensityContext";
+import {
+  collapsedForDensity,
+  useCompactLayout,
+} from "@/layout/useCompactLayout";
 import { streamLabel, streamTone } from "@/lib/streamStatus";
 import { ApiError } from "@/services/apiClient";
 import {
@@ -63,6 +68,7 @@ function buildFetchParams(
 }
 
 export function BlotterView() {
+  const density = useDensity();
   const [books, setBooks] = useState<Book[]>([]);
   const [trades, setTrades] = useState<Trade[]>([]);
   const [loading, setLoading] = useState(true);
@@ -79,8 +85,13 @@ export function BlotterView() {
   );
   const [selectedTradeId, setSelectedTradeId] = useState<string | null>(null);
   const [drawerTab, setDrawerTab] = useState<DrawerTab>("details");
-  const [filtersCollapsed, setFiltersCollapsed] = useState(false);
-  const [drawerCollapsed, setDrawerCollapsed] = useState(false);
+  const [filtersCollapsed, setFiltersCollapsed] = useState(() =>
+    collapsedForDensity(density),
+  );
+  const [drawerCollapsed, setDrawerCollapsed] = useState(() =>
+    collapsedForDensity(density),
+  );
+  useCompactLayout({ setFiltersCollapsed, setDrawerCollapsed });
 
   const [valuationHistory, setValuationHistory] = useState<Valuation[]>([]);
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);

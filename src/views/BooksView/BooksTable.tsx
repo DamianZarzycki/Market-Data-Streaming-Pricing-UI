@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { Button } from "@/components/ui/Button";
 import { StatusPill } from "@/components/ui/StatusPill";
 import type { Book } from "@/domain/types";
+import { useDensity } from "@/layout/DensityContext";
 import { cn } from "@/lib/cn";
 
 interface BooksTableProps {
@@ -19,6 +20,10 @@ export function BooksTable({
   onEdit,
   onDelete,
 }: BooksTableProps) {
+  const density = useDensity();
+  const isCompact = density === "compact";
+  const cellPad = isCompact ? "px-2 py-1 text-sm" : "px-4 py-2.5";
+
   if (books.length === 0) {
     return (
       <div className="px-4 py-8 text-center text-text-muted">
@@ -32,11 +37,11 @@ export function BooksTable({
       <table className="w-full border-collapse text-base">
         <thead className="sticky top-0 z-10 bg-surface-alt">
           <tr className="text-left text-sm text-text-muted">
-            <Th>Name</Th>
-            <Th>Expected Class</Th>
-            <Th>Status</Th>
-            <Th>Description</Th>
-            <Th className="text-right">Actions</Th>
+            <Th className={cellPad}>Name</Th>
+            <Th className={cellPad}>Expected Class</Th>
+            <Th className={cellPad}>Status</Th>
+            {!isCompact ? <Th className={cellPad}>Description</Th> : null}
+            <Th className={cn(cellPad, "text-right")}>Actions</Th>
           </tr>
         </thead>
         <tbody>
@@ -53,20 +58,25 @@ export function BooksTable({
                 )}
                 onClick={() => onSelect(book.book_id)}
               >
-                <Td className="font-semibold">{book.name}</Td>
-                <Td>{book.expected_asset_class}</Td>
-                <Td>
+                <Td className={cn(cellPad, "font-semibold")}>{book.name}</Td>
+                <Td className={cellPad}>{book.expected_asset_class}</Td>
+                <Td className={cellPad}>
                   <StatusPill tone={book.is_active ? "live" : "stale"}>
                     {book.is_active ? "ACTIVE" : "INACTIVE"}
                   </StatusPill>
                 </Td>
-                <Td
-                  className="max-w-[14rem] truncate text-text-muted"
-                  title={book.description?.trim() || undefined}
-                >
-                  {book.description?.trim() || "—"}
-                </Td>
-                <Td className="text-right">
+                {!isCompact ? (
+                  <Td
+                    className={cn(
+                      cellPad,
+                      "max-w-[14rem] truncate text-text-muted",
+                    )}
+                    title={book.description?.trim() || undefined}
+                  >
+                    {book.description?.trim() || "—"}
+                  </Td>
+                ) : null}
+                <Td className={cn(cellPad, "text-right")}>
                   <div
                     className="inline-flex gap-2"
                     onClick={(event) => event.stopPropagation()}
@@ -106,7 +116,7 @@ function Th({
   return (
     <th
       className={cn(
-        "px-4 py-2.5 text-sm font-semibold uppercase tracking-[0.03em]",
+        "text-sm font-semibold uppercase tracking-[0.03em]",
         className,
       )}
     >
@@ -125,7 +135,7 @@ function Td({
   title?: string;
 }) {
   return (
-    <td className={cn("px-4 py-2.5 align-middle", className)} title={title}>
+    <td className={cn("align-middle", className)} title={title}>
       {children}
     </td>
   );

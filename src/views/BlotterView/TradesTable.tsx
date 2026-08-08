@@ -18,6 +18,37 @@ interface TradesTableProps {
   emptyMessage?: string;
 }
 
+type ColumnKey =
+  | "symbol"
+  | "book"
+  | "assetClass"
+  | "price"
+  | "qty"
+  | "side"
+  | "status"
+  | "realized"
+  | "unrealized"
+  | "updated";
+
+const COLUMNS: {
+  key: ColumnKey;
+  label: string;
+  align?: "left" | "right";
+  /** Shown in compact density when true (default). */
+  compact?: boolean;
+}[] = [
+  { key: "symbol", label: "Symbol" },
+  { key: "book", label: "Book" },
+  { key: "assetClass", label: "Asset Class", compact: false },
+  { key: "price", label: "Price", align: "right", compact: false },
+  { key: "qty", label: "Qty", align: "right" },
+  { key: "side", label: "Side" },
+  { key: "status", label: "Status" },
+  { key: "realized", label: "Realized PnL", align: "right", compact: false },
+  { key: "unrealized", label: "Unrealized PnL", align: "right" },
+  { key: "updated", label: "Updated", compact: false },
+];
+
 export const TradesTable = memo(function TradesTable({
   trades,
   selectedTradeId,
@@ -25,8 +56,13 @@ export const TradesTable = memo(function TradesTable({
   emptyMessage = "No trades match the current filters.",
 }: TradesTableProps) {
   const density = useDensity();
-  const cellPad =
-    density === "compact" ? "px-2 py-1 text-sm" : "px-2.5 py-1.5 text-sm";
+  const isCompact = density === "compact";
+  const cellPad = isCompact
+    ? "px-2 py-1 text-sm"
+    : "px-2.5 py-1.5 text-sm";
+  const visibleColumns = COLUMNS.filter(
+    (column) => !isCompact || column.compact !== false,
+  );
 
   if (trades.length === 0) {
     return (
@@ -40,24 +76,17 @@ export const TradesTable = memo(function TradesTable({
     <table className="w-full border-collapse text-base">
       <thead>
         <tr>
-          <Th className={cellPad}>Symbol</Th>
-          <Th className={cellPad}>Book</Th>
-          <Th className={cellPad}>Asset Class</Th>
-          <Th className={cn(cellPad, "text-right font-mono tabular-nums")}>
-            Price
-          </Th>
-          <Th className={cn(cellPad, "text-right font-mono tabular-nums")}>
-            Qty
-          </Th>
-          <Th className={cellPad}>Side</Th>
-          <Th className={cellPad}>Status</Th>
-          <Th className={cn(cellPad, "text-right font-mono tabular-nums")}>
-            Realized PnL
-          </Th>
-          <Th className={cn(cellPad, "text-right font-mono tabular-nums")}>
-            Unrealized PnL
-          </Th>
-          <Th className={cellPad}>Updated</Th>
+          {visibleColumns.map((column) => (
+            <Th
+              key={column.key}
+              className={cn(
+                cellPad,
+                column.align === "right" && "text-right font-mono tabular-nums",
+              )}
+            >
+              {column.label}
+            </Th>
+          ))}
         </tr>
       </thead>
       <tbody>
@@ -67,6 +96,7 @@ export const TradesTable = memo(function TradesTable({
             trade={trade}
             selected={trade.trade_id === selectedTradeId}
             cellPad={cellPad}
+            isCompact={isCompact}
             onSelectTrade={onSelectTrade}
           />
         ))}
@@ -79,6 +109,7 @@ interface TradeRowProps {
   trade: Trade;
   selected: boolean;
   cellPad: string;
+  isCompact: boolean;
   onSelectTrade: (tradeId: string) => void;
 }
 
@@ -86,6 +117,7 @@ const TradeRow = memo(function TradeRow({
   trade,
   selected,
   cellPad,
+  isCompact,
   onSelectTrade,
 }: TradeRowProps) {
   return (
@@ -101,22 +133,24 @@ const TradeRow = memo(function TradeRow({
         <strong>{trade.symbol ?? "—"}</strong>
       </Td>
       <Td className={cellPad}>{trade.book_name ?? trade.book_id}</Td>
-      <Td className={cellPad}>{trade.asset_class}</Td>
-      <Td
-        className={cn(
-          cellPad,
-          "whitespace-nowrap text-right font-mono tabular-nums",
-        )}
-      >
-        <span className="text-base font-bold tracking-[0.01em] text-text">
-          {formatNumber(trade.trade_price, 4)}
-        </span>
-        {trade.currency ? (
-          <span className="ml-1 text-sm font-semibold text-accent">
-            {trade.currency}
+      {!isCompact ? <Td className={cellPad}>{trade.asset_class}</Td> : null}
+      {!isCompact ? (
+        <Td
+          className={cn(
+            cellPad,
+            "whitespace-nowrap text-right font-mono tabular-nums",
+          )}
+        >
+          <span className="text-base font-bold tracking-[0.01em] text-text">
+            {formatNumber(trade.trade_price, 4)}
           </span>
-        ) : null}
-      </Td>
+          {trade.currency ? (
+            <span className="ml-1 text-sm font-semibold text-accent">
+              {trade.currency}
+            </span>
+          ) : null}
+        </Td>
+      ) : null}
       <Td className={cn(cellPad, "text-right font-mono tabular-nums")}>
         {formatQuantity(trade.quantity)}
       </Td>
@@ -126,15 +160,17 @@ const TradeRow = memo(function TradeRow({
           {trade.status ?? "—"}
         </StatusPill>
       </Td>
-      <Td
-        className={cn(
-          cellPad,
-          "text-right font-mono tabular-nums",
-          pnlClass(trade.realized_pnl),
-        )}
-      >
-        {formatPnl(trade.realized_pnl)}
-      </Td>
+      {!isCompact ? (
+        <Td
+          className={cn(
+            cellPad,
+            "text-right font-mono tabular-nums",
+            pnlClass(trade.realized_pnl),
+          )}
+        >
+          {formatPnl(trade.realized_pnl)}
+        </Td>
+      ) : null}
       <Td
         className={cn(
           cellPad,
@@ -144,9 +180,11 @@ const TradeRow = memo(function TradeRow({
       >
         {formatPnl(trade.unrealized_pnl)}
       </Td>
-      <Td className={cn(cellPad, "whitespace-nowrap tabular-nums")}>
-        {formatTimestamp(trade.created_at)}
-      </Td>
+      {!isCompact ? (
+        <Td className={cn(cellPad, "whitespace-nowrap tabular-nums")}>
+          {formatTimestamp(trade.created_at)}
+        </Td>
+      ) : null}
     </tr>
   );
 });

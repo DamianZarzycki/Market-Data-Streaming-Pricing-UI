@@ -4,6 +4,11 @@ import { StatusPill } from "@/components/ui/StatusPill";
 import { InlineAlert } from "@/components/layout/InlineAlert";
 import { PanelHeader } from "@/components/layout/PanelHeader";
 import { WorkspaceLayout } from "@/components/layout/WorkspaceLayout";
+import { useDensity } from "@/layout/DensityContext";
+import {
+  collapsedForDensity,
+  useCompactLayout,
+} from "@/layout/useCompactLayout";
 import { ApiError } from "@/services/apiClient";
 import {
   fetchTradeActionHealth,
@@ -25,11 +30,15 @@ function errorMessage(err: unknown, fallback: string): string {
 }
 
 export function TradeActionView() {
+  const density = useDensity();
   const [status, setStatus] = useState<TradeActionStatus | null>(null);
   const [serviceUp, setServiceUp] = useState<boolean | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [drawerCollapsed, setDrawerCollapsed] = useState(false);
+  const [drawerCollapsed, setDrawerCollapsed] = useState(() =>
+    collapsedForDensity(density),
+  );
+  useCompactLayout({ setDrawerCollapsed });
 
   const refresh = useCallback(async (showLoading = false) => {
     if (showLoading) setLoading(true);

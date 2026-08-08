@@ -4,6 +4,11 @@ import { StatusPill } from "@/components/ui/StatusPill";
 import { InlineAlert } from "@/components/layout/InlineAlert";
 import { PanelHeader } from "@/components/layout/PanelHeader";
 import { WorkspaceLayout } from "@/components/layout/WorkspaceLayout";
+import { useDensity } from "@/layout/DensityContext";
+import {
+  collapsedForDensity,
+  useCompactLayout,
+} from "@/layout/useCompactLayout";
 import { ApiError } from "@/services/apiClient";
 import {
   fetchMonitoringHealth,
@@ -42,11 +47,15 @@ interface TransitionTrack {
 }
 
 export function MonitoringView() {
+  const density = useDensity();
   const [status, setStatus] = useState<NormalizedMonitoringStatus | null>(null);
   const [serviceUp, setServiceUp] = useState<boolean | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [drawerCollapsed, setDrawerCollapsed] = useState(false);
+  const [drawerCollapsed, setDrawerCollapsed] = useState(() =>
+    collapsedForDensity(density),
+  );
+  useCompactLayout({ setDrawerCollapsed });
   const [selectedKey, setSelectedKey] = useState<ProbeKey | null>(null);
   const [track, setTrack] = useState<TransitionTrack>({
     prev: {},

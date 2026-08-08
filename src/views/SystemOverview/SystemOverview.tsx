@@ -5,6 +5,11 @@ import { StatusPill } from "@/components/ui/StatusPill";
 import { InlineAlert } from "@/components/layout/InlineAlert";
 import { PanelHeader } from "@/components/layout/PanelHeader";
 import { WorkspaceLayout } from "@/components/layout/WorkspaceLayout";
+import { useDensity } from "@/layout/DensityContext";
+import {
+  collapsedForDensity,
+  useCompactLayout,
+} from "@/layout/useCompactLayout";
 import { ApiError } from "@/services/apiClient";
 import { fetchBooks, fetchTrades } from "@/services/blotterService";
 import { fetchMonitoringStatus } from "@/services/monitoringService";
@@ -33,6 +38,7 @@ function errorMessage(err: unknown, fallback: string): string {
 
 export function SystemOverview() {
   const navigate = useNavigate();
+  const density = useDensity();
   const [monitoring, setMonitoring] =
     useState<NormalizedMonitoringStatus | null>(null);
   const [monitoringReachable, setMonitoringReachable] = useState(false);
@@ -44,7 +50,10 @@ export function SystemOverview() {
   } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [drawerCollapsed, setDrawerCollapsed] = useState(false);
+  const [drawerCollapsed, setDrawerCollapsed] = useState(() =>
+    collapsedForDensity(density),
+  );
+  useCompactLayout({ setDrawerCollapsed });
   const [selectedId, setSelectedId] = useState<OverviewServiceId | null>(
     null,
   );

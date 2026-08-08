@@ -28,10 +28,12 @@ const COLUMNS: {
   key: TickSortKey;
   label: string;
   align?: "left" | "right";
+  /** Shown in compact density when true (default). */
+  compact?: boolean;
 }[] = [
-  { key: "time", label: "Time" },
+  { key: "time", label: "Time", compact: false },
   { key: "symbol", label: "Symbol" },
-  { key: "dataClass", label: "Data Class" },
+  { key: "dataClass", label: "Data Class", compact: false },
   { key: "price", label: "Price / Value", align: "right" },
   { key: "status", label: "Status" },
 ];
@@ -46,8 +48,13 @@ export const TicksTable = memo(function TicksTable({
   emptyMessage = "No ticks match the current filters.",
 }: TicksTableProps) {
   const density = useDensity();
-  const cellPad =
-    density === "compact" ? "px-2 py-1 text-sm" : "px-2.5 py-1.5 text-sm";
+  const isCompact = density === "compact";
+  const cellPad = isCompact
+    ? "px-2 py-1 text-sm"
+    : "px-2.5 py-1.5 text-sm";
+  const visibleColumns = COLUMNS.filter(
+    (column) => !isCompact || column.compact !== false,
+  );
 
   if (ticks.length === 0) {
     return (
@@ -61,7 +68,7 @@ export const TicksTable = memo(function TicksTable({
     <table className="w-full border-collapse text-base">
       <thead>
         <tr>
-          {COLUMNS.map((column) => (
+          {visibleColumns.map((column) => (
             <SortableTh
               key={column.key}
               sortKey={column.key}
@@ -86,6 +93,7 @@ export const TicksTable = memo(function TicksTable({
             selected={tick.instrumentKey === selectedInstrumentKey}
             status={liveStatusFor(tick.receivedAt, nowMs)}
             cellPad={cellPad}
+            isCompact={isCompact}
             onSelectTick={onSelectTick}
           />
         ))}
@@ -168,6 +176,7 @@ interface TickRowProps {
   selected: boolean;
   status: LiveStatus;
   cellPad: string;
+  isCompact: boolean;
   onSelectTick: (instrumentKey: string) => void;
 }
 
@@ -176,6 +185,7 @@ const TickRow = memo(function TickRow({
   selected,
   status,
   cellPad,
+  isCompact,
   onSelectTick,
 }: TickRowProps) {
   return (
@@ -187,11 +197,18 @@ const TickRow = memo(function TickRow({
       onClick={() => onSelectTick(tick.instrumentKey)}
       aria-selected={selected}
     >
-      <Td className={cn(cellPad, "font-mono text-sm tabular-nums text-text-muted")}>
-        {formatTimestamp(tick.timestamp)}
-      </Td>
+      {!isCompact ? (
+        <Td
+          className={cn(
+            cellPad,
+            "font-mono text-sm tabular-nums text-text-muted",
+          )}
+        >
+          {formatTimestamp(tick.timestamp)}
+        </Td>
+      ) : null}
       <Td className={cn(cellPad, "font-semibold")}>{tick.symbol}</Td>
-      <Td className={cellPad}>{tick.dataClass}</Td>
+      {!isCompact ? <Td className={cellPad}>{tick.dataClass}</Td> : null}
       <Td className={cn(cellPad, "text-right font-mono tabular-nums")}>
         {formatPrice(tick.price, tick.currency, 4, tick.dataClass)}
       </Td>

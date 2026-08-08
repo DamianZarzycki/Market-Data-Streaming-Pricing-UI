@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { useDensity } from "@/layout/DensityContext";
 import { cn } from "@/lib/cn";
 import type { ProbeKey, ProbeRow } from "@/views/MonitoringView/deriveMonitoring";
 import {
@@ -20,6 +21,10 @@ export function ProbeResultsTable({
   onSelect,
   emptyMessage = "No probe results yet. Waiting for GET /status.",
 }: ProbeResultsTableProps) {
+  const density = useDensity();
+  const isCompact = density === "compact";
+  const cellPad = isCompact ? "px-2 py-1" : "px-3 py-2";
+
   if (rows.length === 0) {
     return (
       <div className="px-4 py-8 text-center text-text-muted">
@@ -33,11 +38,13 @@ export function ProbeResultsTable({
       <table className="w-full border-collapse text-sm">
         <thead>
           <tr>
-            <Th className="w-[220px]">Service</Th>
-            <Th className="w-[88px]">Status</Th>
-            <Th className="w-[96px]">Response</Th>
-            <Th className="w-[120px]">Last checked</Th>
-            <Th>Error</Th>
+            <Th className={cn(cellPad, "w-[220px]")}>Service</Th>
+            <Th className={cn(cellPad, "w-[88px]")}>Status</Th>
+            <Th className={cn(cellPad, "w-[96px]")}>Response</Th>
+            {!isCompact ? (
+              <Th className={cn(cellPad, "w-[120px]")}>Last checked</Th>
+            ) : null}
+            {!isCompact ? <Th className={cellPad}>Error</Th> : null}
           </tr>
         </thead>
         <tbody>
@@ -64,25 +71,37 @@ export function ProbeResultsTable({
                   }
                 }}
               >
-                <Td className="font-mono text-text">{row.key}</Td>
-                <Td>
+                <Td className={cn(cellPad, "font-mono text-text")}>
+                  {row.key}
+                </Td>
+                <Td className={cellPad}>
                   <ProbeStatusPill status={row.status} />
                 </Td>
-                <Td className="font-mono tabular-nums">
+                <Td className={cn(cellPad, "font-mono tabular-nums")}>
                   {formatLatency(row.responseTimeMs)}
                 </Td>
-                <Td className="font-mono tabular-nums text-text-muted">
-                  {formatClock(row.lastChecked)}
-                </Td>
-                <Td
-                  className={cn(
-                    "max-w-[280px] truncate",
-                    row.error ? "text-error" : "text-text-muted",
-                  )}
-                  title={row.error ?? undefined}
-                >
-                  {row.error || "—"}
-                </Td>
+                {!isCompact ? (
+                  <Td
+                    className={cn(
+                      cellPad,
+                      "font-mono tabular-nums text-text-muted",
+                    )}
+                  >
+                    {formatClock(row.lastChecked)}
+                  </Td>
+                ) : null}
+                {!isCompact ? (
+                  <Td
+                    className={cn(
+                      cellPad,
+                      "max-w-[280px] truncate",
+                      row.error ? "text-error" : "text-text-muted",
+                    )}
+                    title={row.error ?? undefined}
+                  >
+                    {row.error || "—"}
+                  </Td>
+                ) : null}
               </tr>
             );
           })}
@@ -102,7 +121,7 @@ function Th({
   return (
     <th
       className={cn(
-        "sticky top-0 z-10 border-b border-border bg-surface-alt px-3 py-2 text-left text-[10px] font-medium uppercase tracking-[0.04em] text-text-muted",
+        "sticky top-0 z-10 border-b border-border bg-surface-alt text-left text-[10px] font-medium uppercase tracking-[0.04em] text-text-muted",
         className,
       )}
     >
@@ -121,7 +140,7 @@ function Td({
   title?: string;
 }) {
   return (
-    <td className={cn("px-3 py-2 align-middle", className)} title={title}>
+    <td className={cn("align-middle", className)} title={title}>
       {children}
     </td>
   );

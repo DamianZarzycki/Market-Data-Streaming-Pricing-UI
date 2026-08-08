@@ -32,7 +32,7 @@ export function TopBar({ density, onToggleDensity, className }: TopBarProps) {
           type="button"
           className="cursor-pointer rounded border border-border bg-surface-alt px-3 py-1 text-sm text-text hover:border-accent"
           onClick={onToggleDensity}
-          title="Toggle table density"
+          title="Toggle compact mode: crucial columns only, collapse filters and drawer"
         >
           {density === "compact" ? "Comfortable" : "Compact"}
         </button>

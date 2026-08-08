@@ -8,6 +8,11 @@ import {
   useMarketDataStream,
   type MarketDataBatch,
 } from "@/hooks/useMarketDataStream";
+import { useDensity } from "@/layout/DensityContext";
+import {
+  collapsedForDensity,
+  useCompactLayout,
+} from "@/layout/useCompactLayout";
 import { streamLabel, streamTone } from "@/lib/streamStatus";
 import { ApiError } from "@/services/apiClient";
 import {
@@ -33,6 +38,7 @@ import {
 import { TicksTable } from "@/views/MarketDataView/TicksTable";
 
 export function MarketDataView() {
+  const density = useDensity();
   const [ticks, setTicks] = useState<MarketTickRow[]>([]);
   const [priceHistory, setPriceHistory] = useState<Map<string, PricePoint[]>>(
     () => new Map(),
@@ -50,8 +56,13 @@ export function MarketDataView() {
   const [selectedInstrumentKey, setSelectedInstrumentKey] = useState<
     string | null
   >(null);
-  const [filtersCollapsed, setFiltersCollapsed] = useState(false);
-  const [drawerCollapsed, setDrawerCollapsed] = useState(false);
+  const [filtersCollapsed, setFiltersCollapsed] = useState(() =>
+    collapsedForDensity(density),
+  );
+  const [drawerCollapsed, setDrawerCollapsed] = useState(() =>
+    collapsedForDensity(density),
+  );
+  useCompactLayout({ setFiltersCollapsed, setDrawerCollapsed });
   const [nowMs, setNowMs] = useState(() => Date.now());
 
   useEffect(() => {

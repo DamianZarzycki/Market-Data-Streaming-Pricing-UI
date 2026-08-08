@@ -4,6 +4,11 @@ import { InlineAlert } from "@/components/layout/InlineAlert";
 import { PanelHeader } from "@/components/layout/PanelHeader";
 import { WorkspaceLayout } from "@/components/layout/WorkspaceLayout";
 import type { AssetClass, Book } from "@/domain/types";
+import { useDensity } from "@/layout/DensityContext";
+import {
+  collapsedForDensity,
+  useCompactLayout,
+} from "@/layout/useCompactLayout";
 import { ApiError } from "@/services/apiClient";
 import { fetchBooks as fetchBlotterBooks, fetchTrades } from "@/services/blotterService";
 import {
@@ -51,6 +56,7 @@ type ModalState =
   | { type: "delete"; book: Book };
 
 export function BooksView() {
+  const density = useDensity();
   const [books, setBooks] = useState<Book[]>([]);
   const [pnlByBookId, setPnlByBookId] = useState<
     Record<string, BookPnlCacheEntry>
@@ -60,7 +66,10 @@ export function BooksView() {
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [drawerCollapsed, setDrawerCollapsed] = useState(false);
+  const [drawerCollapsed, setDrawerCollapsed] = useState(() =>
+    collapsedForDensity(density),
+  );
+  useCompactLayout({ setDrawerCollapsed });
   const [modal, setModal] = useState<ModalState>({ type: "none" });
   const [modalBusy, setModalBusy] = useState(false);
   const [modalError, setModalError] = useState<string | null>(null);

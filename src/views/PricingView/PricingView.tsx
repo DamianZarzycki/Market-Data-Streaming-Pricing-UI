@@ -9,6 +9,8 @@ import {
   usePricingValuationStream,
   type PricingValuationBatch,
 } from "@/hooks/usePricingValuationStream";
+import { useCompactLayout, collapsedForDensity } from "@/layout/useCompactLayout";
+import { useDensity } from "@/layout/DensityContext";
 import { streamLabel, streamTone } from "@/lib/streamStatus";
 import { ApiError } from "@/services/apiClient";
 import { listBooks } from "@/services/booksService";
@@ -44,6 +46,7 @@ import { ValuationsTable } from "@/views/PricingView/ValuationsTable";
 const METRICS_POLL_MS = 5_000;
 
 export function PricingView() {
+  const density = useDensity();
   const [books, setBooks] = useState<Book[]>([]);
   const [rows, setRows] = useState<PricingValuationRow[]>([]);
   const [updates, setUpdates] = useState(0);
@@ -59,8 +62,13 @@ export function PricingView() {
   const [selectedStatus, setSelectedStatus] = useState<StatusFilter>("ALL");
   const [sort, setSort] = useState<ValuationSortState | null>(null);
   const [selectedTradeId, setSelectedTradeId] = useState<string | null>(null);
-  const [filtersCollapsed, setFiltersCollapsed] = useState(false);
-  const [drawerCollapsed, setDrawerCollapsed] = useState(false);
+  const [filtersCollapsed, setFiltersCollapsed] = useState(() =>
+    collapsedForDensity(density),
+  );
+  const [drawerCollapsed, setDrawerCollapsed] = useState(() =>
+    collapsedForDensity(density),
+  );
+  useCompactLayout({ setFiltersCollapsed, setDrawerCollapsed });
   const [nowMs, setNowMs] = useState(() => Date.now());
 
   const bookNamesRef = useRef<Record<string, string>>({});

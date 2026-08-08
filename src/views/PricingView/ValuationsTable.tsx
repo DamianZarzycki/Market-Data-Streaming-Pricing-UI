@@ -31,15 +31,17 @@ const COLUMNS: {
   label: string;
   align?: "left" | "right";
   mono?: boolean;
+  /** Shown in compact density when true (default). */
+  compact?: boolean;
 }[] = [
-  { key: "tradeId", label: "Trade" },
+  { key: "tradeId", label: "Trade", compact: false },
   { key: "symbol", label: "Symbol" },
-  { key: "book", label: "Book" },
-  { key: "assetClass", label: "Class" },
+  { key: "book", label: "Book", compact: false },
+  { key: "assetClass", label: "Class", compact: false },
   { key: "fairValue", label: "Fair Value", align: "right", mono: true },
   { key: "unrealizedPnl", label: "Unrealized", align: "right", mono: true },
   { key: "status", label: "Status" },
-  { key: "updated", label: "Updated", mono: true },
+  { key: "updated", label: "Updated", mono: true, compact: false },
 ];
 
 export const ValuationsTable = memo(function ValuationsTable({
@@ -52,8 +54,13 @@ export const ValuationsTable = memo(function ValuationsTable({
   emptyMessage = "No valuations match the current filters.",
 }: ValuationsTableProps) {
   const density = useDensity();
-  const cellPad =
-    density === "compact" ? "px-2 py-1 text-sm" : "px-2.5 py-1.5 text-sm";
+  const isCompact = density === "compact";
+  const cellPad = isCompact
+    ? "px-2 py-1 text-sm"
+    : "px-2.5 py-1.5 text-sm";
+  const visibleColumns = COLUMNS.filter(
+    (column) => !isCompact || column.compact !== false,
+  );
 
   if (rows.length === 0) {
     return (
@@ -67,7 +74,7 @@ export const ValuationsTable = memo(function ValuationsTable({
     <table className="w-full border-collapse text-base">
       <thead>
         <tr>
-          {COLUMNS.map((column) => (
+          {visibleColumns.map((column) => (
             <SortableTh
               key={column.key}
               sortKey={column.key}
@@ -93,6 +100,7 @@ export const ValuationsTable = memo(function ValuationsTable({
             selected={row.tradeId === selectedTradeId}
             status={liveStatusFor(row.receivedAt, nowMs)}
             cellPad={cellPad}
+            isCompact={isCompact}
             onSelectRow={onSelectRow}
           />
         ))}
@@ -175,6 +183,7 @@ interface ValuationRowProps {
   selected: boolean;
   status: LiveStatus;
   cellPad: string;
+  isCompact: boolean;
   onSelectRow: (tradeId: string) => void;
 }
 
@@ -183,6 +192,7 @@ const ValuationRow = memo(function ValuationRow({
   selected,
   status,
   cellPad,
+  isCompact,
   onSelectRow,
 }: ValuationRowProps) {
   return (
@@ -194,12 +204,19 @@ const ValuationRow = memo(function ValuationRow({
       onClick={() => onSelectRow(row.tradeId)}
       aria-selected={selected}
     >
-      <Td className={cn(cellPad, "font-mono text-sm tabular-nums text-text-muted")}>
-        {row.tradeId}
-      </Td>
+      {!isCompact ? (
+        <Td
+          className={cn(
+            cellPad,
+            "font-mono text-sm tabular-nums text-text-muted",
+          )}
+        >
+          {row.tradeId}
+        </Td>
+      ) : null}
       <Td className={cn(cellPad, "font-semibold")}>{row.symbol}</Td>
-      <Td className={cellPad}>{row.bookName}</Td>
-      <Td className={cellPad}>{row.assetClass}</Td>
+      {!isCompact ? <Td className={cellPad}>{row.bookName}</Td> : null}
+      {!isCompact ? <Td className={cellPad}>{row.assetClass}</Td> : null}
       <Td className={cn(cellPad, "text-right font-mono tabular-nums")}>
         {formatFairValue(row.fairValue, row.currency)}
       </Td>
@@ -215,9 +232,16 @@ const ValuationRow = memo(function ValuationRow({
       <Td className={cellPad}>
         <StatusPill tone={status}>{status}</StatusPill>
       </Td>
-      <Td className={cn(cellPad, "font-mono text-sm tabular-nums text-text-muted")}>
-        {formatClock(row.valuationTime)}
-      </Td>
+      {!isCompact ? (
+        <Td
+          className={cn(
+            cellPad,
+            "font-mono text-sm tabular-nums text-text-muted",
+          )}
+        >
+          {formatClock(row.valuationTime)}
+        </Td>
+      ) : null}
     </tr>
   );
 });

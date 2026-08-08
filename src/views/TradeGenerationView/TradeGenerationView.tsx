@@ -1,6 +1,11 @@
 import { useCallback, useEffect, useState } from "react";
 import { InlineAlert } from "@/components/layout/InlineAlert";
 import { WorkspaceLayout } from "@/components/layout/WorkspaceLayout";
+import { useDensity } from "@/layout/DensityContext";
+import {
+  collapsedForDensity,
+  useCompactLayout,
+} from "@/layout/useCompactLayout";
 import { ApiError } from "@/services/apiClient";
 import {
   fetchTradeGenerationHealth,
@@ -44,6 +49,7 @@ function errorMessage(err: unknown, fallback: string): string {
 }
 
 export function TradeGenerationView() {
+  const density = useDensity();
   const [status, setStatus] = useState<TradeGenerationStatus | null>(null);
   const [serviceUp, setServiceUp] = useState<boolean | null>(null);
   const [lastResponse, setLastResponse] = useState<LastApiResponse | null>(
@@ -52,7 +58,10 @@ export function TradeGenerationView() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [actionBusy, setActionBusy] = useState<string | null>(null);
-  const [drawerCollapsed, setDrawerCollapsed] = useState(false);
+  const [drawerCollapsed, setDrawerCollapsed] = useState(() =>
+    collapsedForDensity(density),
+  );
+  useCompactLayout({ setDrawerCollapsed });
 
   const recordResponse = useCallback(
     (method: string, path: string, ok: boolean, body: unknown) => {
