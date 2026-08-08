@@ -1,16 +1,17 @@
 # Backend gaps — System Overview
 
-Frontend System Overview is wired to be **future-proof**: missing fields render as `—`, missing services show `UNKNOWN`, and monitoring downtime does not crash the page. When you extend the BE, the FE already reads the shapes below (see `frontend/src/services/monitoringTypes.ts` + `normalizeMonitoringStatus`).
+Frontend System Overview is wired to be **future-proof**: missing fields render as `—`, missing services show `UNKNOWN`, and monitoring downtime does not crash the page. Shapes live in `frontend/src/services/monitoringTypes.ts` + `normalizeMonitoringStatus`.
 
-## Current BE reality (as of FE implementation)
+## Current BE reality
 
 | Piece | Status |
 | --- | --- |
 | `monitoring-service` in `docker-compose.yml` | Enabled · mounts `./shared` · probes current ports |
-| `GET /monitoring/status` | Flat map only: `{ "<service>": { status, last_checked, response_time_ms?, error? } }` |
+| `GET /monitoring/status` | **Envelope**: `{ services, environment, kpis, alerts }` |
+| `environment` / `kpis` freshness | **Implemented** · `errors_5m`, `last_market_tick`, `last_valuation` (+ detail strings) |
 | `GET /monitoring/status-stream` | Listed in FE `endpoints.ts` but **not implemented** in BE |
-| Postgres probe | Worker calls postgres but **does not include it** in `health_cache` |
-| Monitoring self-entry | **Not** in `health_cache` (FE synthesizes a Monitoring card from `/status` reachability) |
+| Postgres probe | Not included in `services` map |
+| Monitoring self-entry | **Not** in `services` (FE synthesizes a Monitoring card from `/status` reachability) |
 
 ### Services present in today’s probe map
 
@@ -21,11 +22,17 @@ Frontend System Overview is wired to be **future-proof**: missing fields render 
 - `book-service`
 - `blotter-service`
 
+### How freshness KPIs are sourced
+
+| KPI | Source |
+| --- | --- |
+| `last_market_tick` | `market-data-service` `/health` → `last_event_time` (+ `last_symbol` / `last_asset_type`) |
+| `last_valuation` | `pricing-service` `/health` → `last_pricing_time` (+ symbol / asset class) |
+| `errors_5m` | Sliding 5‑minute window of probe **DOWN transitions** (not every failed poll) |
+
 ---
 
-## What FE expects next (optional envelope)
-
-Prefer evolving `GET /status` toward:
+## Status envelope shape
 
 ```json
 {
@@ -34,95 +41,66 @@ Prefer evolving `GET /status` toward:
       "status": "UP",
       "last_checked": "2026-08-05T12:32:08.123Z",
       "response_time_ms": 18,
-      "errors_5m": 1,
+      "errors_5m": 0,
       "last_event": "tick",
       "last_event_at": "2026-08-05T12:32:06.000Z",
-      "message": "Streaming normally",
-      "summary": "Streaming normally",
-      "latency_p50_ms": 18,
-      "latency_p99_ms": 64,
-      "ticks_per_min": 1240,
-      "alerts": [
-        {
-          "severity": "WARN",
-          "message": "Reconnect after brief gap",
-          "time": "2026-08-05T12:30:12.000Z"
-        }
-      ]
+      "summary": "Streaming normally"
     }
   },
   "environment": {
-    "status": "DEGRADED",
-    "message": "Attention needed · monitoring heartbeat delayed",
+    "status": "HEALTHY",
+    "message": "All probed services look healthy",
     "services_up": 6,
-    "services_total": 7,
+    "services_total": 6,
     "data_window": "last 5 min",
-    "errors_5m": 3,
-    "errors_by_service": {
-      "pricing-service": 2,
-      "market-data-service": 1
-    },
+    "errors_5m": 0,
+    "errors_by_service": {},
     "last_market_tick": "2026-08-05T12:32:06.000Z",
-    "last_market_tick_symbol": "AAPL",
-    "last_market_tick_detail": "AAPL OPTION · 2s ago",
+    "last_market_tick_symbol": "ACME",
+    "last_market_tick_detail": "ACME EQUITY · 2s ago",
     "last_valuation": "2026-08-05T12:32:05.000Z",
-    "last_valuation_detail": "Portfolio mark · 3s ago"
+    "last_valuation_detail": "ACME OPTION · 3s ago"
   },
   "kpis": {
-    "realized_pnl": 128450.2,
-    "unrealized_pnl": -12310.4,
-    "active_trades": 142,
-    "books": 8,
-    "errors_5m": 3,
-    "errors_detail": "2 pricing · 1 market data",
+    "errors_5m": 0,
+    "errors_detail": null,
     "last_market_tick": "2026-08-05T12:32:06.000Z",
-    "last_market_tick_detail": "AAPL OPTION · 2s ago",
+    "last_market_tick_detail": "ACME EQUITY · 2s ago",
     "last_valuation": "2026-08-05T12:32:05.000Z",
-    "last_valuation_detail": "Portfolio mark · 3s ago"
+    "last_valuation_detail": "ACME OPTION · 3s ago"
   },
   "alerts": []
 }
 ```
 
-**Backward compatible:** FE still accepts today’s flat service map (no `services` / `environment` / `kpis` wrapper).
+**Backward compatible:** FE still accepts a flat service map (no `services` / `environment` / `kpis` wrapper).
 
 ---
 
-## Gaps to implement on BE (checklist)
+## Remaining gaps (optional)
 
 ### Monitoring service
 
-1. **Enable in docker-compose** and expose behind the gateway as `/api/monitoring/*`.
-2. **Include `monitoring-service` (self)** in the status payload (or document that FE synthesizes it).
-3. **Decide on postgres** — include as a dependency card/entry or drop the unused probe.
-4. **Per-service enrichment** (any subset is fine; FE shows `—` until present):
-   - `errors_5m`
-   - `last_event` / `last_event_at`
-   - `message` / `summary` (plain-language footer)
-   - `latency_p50_ms` / `latency_p99_ms`
-   - `ticks_per_min` / `throughput_per_min`
-   - `alerts[]` (`severity`/`level`, `message`, `time`/`created_at`)
-5. **Environment rollup** (`environment.*`) for the status toolbar + Insights drawer “Last 5 minutes”.
-6. **KPI rollup** (`kpis.*`) so Overview does not have to scrape blotter for PnL / counts.
-7. **`GET /status-stream` (SSE)** — FE currently polls every 2s; stream would replace that (endpoint already reserved in FE).
-8. **Stale / DEGRADED semantics** — today FE marks STALE if `last_checked` is older than ~90s or status is `DEGRADED`/`STALE`. Align BE tokens with that (`UP` | `DOWN` | `DEGRADED` | `STALE` | `LIVE`).
+1. **Include `monitoring-service` (self)** in the status payload (or keep FE synthesis).
+2. **Decide on postgres** — include as a dependency card/entry or drop unused probe ideas.
+3. **Per-service enrichment** still optional: `latency_p50_ms` / `latency_p99_ms`, `ticks_per_min`, richer `alerts[]`.
+4. **`GET /status-stream` (SSE)** — FE currently polls every 2s; stream would replace that.
+5. **KPI PnL / trade counts** — Overview still falls back to blotter for realized/unrealized PnL, active trades, and books (monitoring `kpis` does not yet include those).
 
-### Related services (nice-to-have for KPIs)
+### Related services
 
-9. **Canonical active-trade count** — today FE uses `GET /blotter/trades?status=ACTIVE&limit=500` (capped; not exact if >500).
-10. **Portfolio PnL summary endpoint** — today FE sums `realized_pnl` / `unrealized_pnl` from `GET /blotter/books/summary`.
-11. **Last market tick / last valuation timestamps** — nowhere to read today; KPIs stay `—` until `environment`/`kpis` (or dedicated endpoints) provide them.
-12. **Error aggregation window (5m)** — not available; Errors KPI / drawer stats stay `—`.
+6. **Canonical active-trade count** — today FE uses `GET /blotter/trades?status=ACTIVE&limit=500` (capped).
+7. **Portfolio PnL summary endpoint** — today FE sums blotter books summary.
 
 ---
 
-## What FE already covers without BE changes
+## What FE already covers
 
 - Status toolbar derived from probe UP/DOWN (+ STALE heuristic)
 - Service cards for the 7 catalog services (6 from map + Monitoring from reachability)
 - Card select → right drawer with static “What this means” + available vitals
 - `Open →` navigates to the service route
-- PnL / books / active-trade KPIs from blotter when monitoring KPIs are absent
+- PnL / books / active-trade KPIs from blotter when monitoring KPIs omit them
 - Soft error banner if monitoring is down; page remains usable
 
 ## Code pointers
@@ -130,4 +108,4 @@ Prefer evolving `GET /status` toward:
 - FE types: `frontend/src/services/monitoringTypes.ts`
 - FE client: `frontend/src/services/monitoringService.ts`
 - View: `frontend/src/views/SystemOverview/`
-- BE today: `backend/services/monitoring-service/{app,worker}.py`
+- BE: `backend/services/monitoring-service/{app,worker}.py`

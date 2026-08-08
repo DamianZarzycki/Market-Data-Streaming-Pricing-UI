@@ -52,6 +52,7 @@ export interface Book {
   is_active: boolean;
   realized_pnl?: number;
   unrealized_pnl?: number;
+  active_trades?: number;
 }
 
 export interface Trade {

@@ -6,6 +6,7 @@ import { cn } from "@/lib/cn";
 import {
   formatPrice,
   formatTimestamp,
+  isRateQuoted,
 } from "@/views/MarketDataView/formatters";
 import { PriceSparkline } from "@/views/MarketDataView/PriceSparkline";
 
@@ -43,14 +44,22 @@ export function MarketDataDrawer({
           </div>
         ) : (
           <div className="flex flex-col gap-4">
-            <section aria-label="Price history">
+            <section
+              aria-label={
+                isRateQuoted(tick.dataClass) ? "Rate history" : "Price history"
+              }
+            >
               <h3 className="mb-2 text-sm font-semibold uppercase tracking-[0.04em] text-text-muted">
-                Price history
+                {isRateQuoted(tick.dataClass) ? "Rate history" : "Price history"}
               </h3>
               <p className="mb-2 text-sm text-text-muted">
                 Last {priceHistory.length} points · up to 100 / 5 min
               </p>
-              <PriceSparkline points={priceHistory} currency={tick.currency} />
+              <PriceSparkline
+                points={priceHistory}
+                currency={tick.currency}
+                dataClass={tick.dataClass}
+              />
             </section>
 
             <section aria-label="Tick details">
@@ -61,12 +70,24 @@ export function MarketDataDrawer({
                 <Detail label="Symbol" value={tick.symbol} />
                 <Detail label="Data class" value={tick.dataClass} />
                 <Detail
-                  label="Price / value"
-                  value={formatPrice(tick.price, tick.currency)}
+                  label={isRateQuoted(tick.dataClass) ? "Fixed rate" : "Price / value"}
+                  value={formatPrice(
+                    tick.price,
+                    tick.currency,
+                    4,
+                    tick.dataClass,
+                  )}
                   mono
                 />
                 {tick.currency ? (
-                  <Detail label="Currency" value={tick.currency} />
+                  <Detail
+                    label={
+                      isRateQuoted(tick.dataClass)
+                        ? "Curve currency"
+                        : "Currency"
+                    }
+                    value={tick.currency}
+                  />
                 ) : null}
                 <Detail
                   label="Timestamp"

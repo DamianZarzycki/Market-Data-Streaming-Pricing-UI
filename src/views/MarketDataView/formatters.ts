@@ -18,13 +18,41 @@ export function formatTimestamp(value: string | undefined | null): string {
   });
 }
 
+/** IRS (and similar) quotes arrive as decimal rates, e.g. 0.0489 → 4.89%. */
+export function isRateQuoted(dataClass?: string | null): boolean {
+  return dataClass === "IRS";
+}
+
+/** Convert a decimal rate to percent units for chart axes / display math. */
+export function rateToPercent(value: number): number {
+  return value * 100;
+}
+
+export function formatRatePercent(
+  value: number | null | undefined,
+  digits = 2,
+): string {
+  if (value === undefined || value === null || Number.isNaN(value)) {
+    return "—";
+  }
+  const pct = rateToPercent(value).toLocaleString("en-US", {
+    minimumFractionDigits: digits,
+    maximumFractionDigits: digits,
+  });
+  return `${pct}%`;
+}
+
 export function formatPrice(
   value: number | null | undefined,
   currency?: string | null,
   digits = 4,
+  dataClass?: string | null,
 ): string {
   if (value === undefined || value === null || Number.isNaN(value)) {
     return "—";
+  }
+  if (isRateQuoted(dataClass)) {
+    return formatRatePercent(value);
   }
   const amount = value.toLocaleString("en-US", {
     minimumFractionDigits: 2,

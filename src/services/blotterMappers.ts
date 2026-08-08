@@ -38,6 +38,7 @@ export function mapBookDto(dto: BlotterBookDto): Book {
     is_active: dto.is_active,
     realized_pnl: asNumber(dto.realized_pnl),
     unrealized_pnl: asNumber(dto.unrealized_pnl),
+    active_trades: asNumber(dto.active_trades),
   };
 }
 

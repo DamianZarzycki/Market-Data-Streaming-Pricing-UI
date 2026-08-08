@@ -83,6 +83,7 @@ export interface BlotterBookDto {
   description?: string | null;
   realized_pnl?: number;
   unrealized_pnl?: number;
+  active_trades?: number;
 }
 
 export interface BlotterBooksSummaryResponse {

@@ -102,6 +102,15 @@ export function normalizeMonitoringStatus(
   };
 }
 
+export interface MonitoringHealth {
+  service?: string;
+  status?: string;
+}
+
+export async function fetchMonitoringHealth(): Promise<MonitoringHealth> {
+  return apiClient.get<MonitoringHealth>(endpoints.monitoring.health);
+}
+
 export async function fetchMonitoringStatus(): Promise<NormalizedMonitoringStatus> {
   const started = performance.now();
   const raw = await apiClient.get<MonitoringStatusResponse>(

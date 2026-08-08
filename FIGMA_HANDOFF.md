@@ -43,6 +43,7 @@ WEB code syntax maps to token names (e.g. `$color-bg` / `--color-bg`).
 | **Pricing** | Full, Insights Only (no selection) | SSE valuations table (fair value, unrealized, α/β, LIVE/STALE) · right panel = selected valuation + **Stream Insights**: most frequent updates, stale valuations, biggest PnL impact · “No row selected” is a **visible accent card** |
 | **Trade Generation** | Running, Stopped | **Control panel** (center): POST `/start` `/stop`, GET `/generate-once` `/generate-batch`, poll GET `/status` · last API response · **Info drawer**: what it does, status, dependencies, API map · (Figma also has Confirm Config Update frames for a future `PUT /config`) |
 | **Trade Action** | Healthy, Queue Pressure | Observability view for async pipeline **accept → queue → worker → DB** · KPIs: processed, errors, avg latency, rejected 400, overload 503, duplicates · **queue/buffer bar** (depth, capacity, backpressure) · **recent actions table** (OPEN/CLOSE, PROCESSED/REJECTED/DUPLICATE/ERROR/QUEUED) · last DB write · Info drawer: resilience (202/400/503, idempotency, FOR UPDATE), recent rejects, API map (`GET /health`, `GET /status`, `POST /trade-actions`, `/batch`) |
+| **Monitoring** | Service Down, All Healthy | Same motif as Trade Action · status toolbar (DEGRADED/HEALTHY, UP count, DOWN count, avg latency) · KPIs from `health_cache` · **SSE connection status** strip · **probe results table** (exact BE keys: market-data / pricing / trade-generation / trade-action / book-service / blotter) with status, `response_time_ms`, `last_checked`, `error` · right drawer: what this means, technical vitals, SSE, status history, API map (`GET /health`, `GET /status`) |
 
 ## What’s implemented in React
 
@@ -54,7 +55,8 @@ WEB code syntax maps to token names (e.g. `$color-bg` / `--color-bg`).
 | **Trade Action** | Done | Status toolbar (HEALTHY/PRESSURE, queue, throughput, worker) · KPI strip · queue fill bar · recent actions table · info drawer (resilience, rejects, API map) · polls `GET /status` + `/health` |
 | **System Overview** | Done | Status toolbar · KPI strip (blotter fallbacks) · service cards + select · Environment Insights / selected-service drawer · polls `GET /monitoring/status` 2s · graceful if monitoring down · BE gaps: `BACKEND_GAPS_SYSTEM_OVERVIEW.md` |
 | **Books** | Done | Toolbar (+ New book, class select, search) · books table · Create/Edit/Delete modals · soft-delete blocked when active trades · right drawer book details + PnL from blotter summary · alpha/beta `—` until BE provides |
-| **Pricing, Monitoring** | Placeholders | Still `PlaceholderView` |
+| **Pricing** | Done | Live valuations via pricing SSE (`usePricingValuationStream`, 100ms coalesce) · filters as selects (Book / Asset Class / Status LIVE|STALE) · summary MetricStrip (updates, live, stale, Σ unrealized) · right drawer: selected valuation + Stream Insights (frequent / stale / biggest PnL) · accent “No row selected” card · book α/β from `GET /book-metrics` (polled 5s) |
+| **Monitoring** | Done | Status toolbar (HEALTHY/DEGRADED) · KPI strip from `health_cache` · SSE strip inferred from market-data + pricing probes (not EventSource / no `/status-stream`) · probe results table · drawer (what this means, vitals, SSE, client-derived UP↔DOWN history, API map) · polls `GET /status` + `/health` every 2s |
 
 ### Reusable workspace shells (use these for new views)
 
@@ -119,15 +121,14 @@ Typical composition:
 - Reference implementations: `frontend/src/views/BlotterView/`, `frontend/src/views/MarketDataView/`
 - System Overview: `frontend/src/views/SystemOverview/`, `frontend/src/services/monitoringService.ts` · BE gaps doc `frontend/BACKEND_GAPS_SYSTEM_OVERVIEW.md`
 - Books: `frontend/src/views/BooksView/`, `frontend/src/services/booksService.ts`
-- Placeholders: `PricingView`, `MonitoringView`
+- Pricing: `frontend/src/views/PricingView/`, `frontend/src/services/pricingService.ts` · BE `/valuation-stream`, `/valuations`, `/book-metrics`, `/health`
+- Monitoring: `frontend/src/views/MonitoringView/`, reuses `monitoringService.ts` · BE `GET /status` + `/health` only
 - Trade Generation: `frontend/src/views/TradeGenerationView/`, `frontend/src/services/tradeGenerationService.ts`
 - Trade Action: `frontend/src/views/TradeActionView/`, `frontend/src/services/tradeActionService.ts` · BE `GET /status` + bounded queue (`TRADE_ACTION_QUEUE_MAXSIZE`)
 
 ## Suggested next steps
 
-- Implement next wireframed views in React (**Pricing** first) using `WorkspaceLayout` + shells — design-to-code from Figma frames
-- Or continue remaining service view in Figma (**Monitoring**) with the same motif
-- Optional backend follow-ups:
+- Optional polish / backend follow-ups:
   - System Overview enrichment: see `BACKEND_GAPS_SYSTEM_OVERVIEW.md` (enable monitoring in compose, environment/kpis envelope, alerts, status-stream)
   - Trade Generation: add `GET/PUT /config` if runtime tuning should be editable in the UI; align compose `TRADE_GENERATION_INTERVAL_MS` with worker `TICK_INTERVAL_MS`
 

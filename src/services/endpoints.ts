@@ -22,10 +22,15 @@ export const endpoints = {
     valuations: `${services.pricing}/valuations`,
     valuationByTrade: (tradeId: string) =>
       `${services.pricing}/valuations/${tradeId}`,
+    bookMetrics: `${services.pricing}/book-metrics`,
+    bookMetricsById: (bookId: string) =>
+      `${services.pricing}/book-metrics/${bookId}`,
     health: `${services.pricing}/health`,
   },
   monitoring: {
+    health: `${services.monitoring}/health`,
     status: `${services.monitoring}/status`,
+    /** Reserved — not implemented by BE today. Do not call from UI. */
     statusStream: `${services.monitoring}/status-stream`,
   },
   books: {

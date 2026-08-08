@@ -60,7 +60,10 @@ export function BooksTable({
                     {book.is_active ? "ACTIVE" : "INACTIVE"}
                   </StatusPill>
                 </Td>
-                <Td className="max-w-[14rem] truncate text-text-muted">
+                <Td
+                  className="max-w-[14rem] truncate text-text-muted"
+                  title={book.description?.trim() || undefined}
+                >
                   {book.description?.trim() || "—"}
                 </Td>
                 <Td className="text-right">
@@ -115,9 +118,15 @@ function Th({
 function Td({
   children,
   className,
+  title,
 }: {
   children: ReactNode;
   className?: string;
+  title?: string;
 }) {
-  return <td className={cn("px-4 py-2.5 align-middle", className)}>{children}</td>;
+  return (
+    <td className={cn("px-4 py-2.5 align-middle", className)} title={title}>
+      {children}
+    </td>
+  );
 }

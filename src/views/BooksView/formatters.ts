@@ -17,7 +17,11 @@ export function formatNumber(
   if (value === undefined || value === null || Number.isNaN(value)) {
     return "—";
   }
-  return value.toLocaleString("en-US", {
+  const factor = 10 ** digits;
+  const rounded = Math.round(value * factor) / factor;
+  // Coerce -0 / tiny negatives that round to zero so we never show "-0.00"
+  const display = rounded === 0 ? 0 : rounded;
+  return display.toLocaleString("en-US", {
     minimumFractionDigits: digits,
     maximumFractionDigits: digits,
   });

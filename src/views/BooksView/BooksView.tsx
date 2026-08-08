@@ -13,6 +13,8 @@ import {
   updateBook,
 } from "@/services/booksService";
 import { BOOK_ASSET_CLASSES } from "@/services/booksTypes";
+import { fetchBookMetrics } from "@/services/pricingService";
+import type { PricingBookMetricsDto } from "@/services/pricingTypes";
 import { BookDeleteModal } from "@/views/BooksView/BookDeleteModal";
 import {
   BookFormModal,
@@ -34,6 +36,14 @@ function errorMessage(err: unknown, fallback: string): string {
   return fallback;
 }
 
+type BookPnlCacheEntry = {
+  realized?: number | null;
+  unrealized?: number | null;
+  activeTrades?: number | null;
+  alpha?: number | null;
+  beta?: number | null;
+};
+
 type ModalState =
   | { type: "none" }
   | { type: "create" }
@@ -43,7 +53,7 @@ type ModalState =
 export function BooksView() {
   const [books, setBooks] = useState<Book[]>([]);
   const [pnlByBookId, setPnlByBookId] = useState<
-    Record<string, { realized?: number | null; unrealized?: number | null }>
+    Record<string, BookPnlCacheEntry>
   >({});
   const [selectedBookId, setSelectedBookId] = useState<string | null>(null);
   const [assetClass, setAssetClass] = useState<AssetClassFilter>("ALL");
@@ -80,17 +90,32 @@ export function BooksView() {
 
     let cancelled = false;
 
-    void fetchBlotterBooks()
-      .then((blotterBooks) => {
+    void Promise.all([
+      fetchBlotterBooks(),
+      fetchBookMetrics().catch(() => ({} as Record<string, PricingBookMetricsDto>)),
+    ])
+      .then(([blotterBooks, metricsByBook]) => {
         if (cancelled) return;
-        const map: Record<
-          string,
-          { realized?: number | null; unrealized?: number | null }
-        > = {};
+        const map: Record<string, BookPnlCacheEntry> = {};
         for (const book of blotterBooks) {
+          const metrics = metricsByBook[book.book_id];
           map[book.book_id] = {
             realized: book.realized_pnl ?? null,
             unrealized: book.unrealized_pnl ?? null,
+            activeTrades: book.active_trades ?? null,
+            alpha: metrics?.alpha ?? null,
+            beta: metrics?.beta ?? null,
+          };
+        }
+        // Keep metrics for selected book even if blotter omitted it.
+        if (!(selectedBookId in map)) {
+          const metrics = metricsByBook[selectedBookId];
+          map[selectedBookId] = {
+            realized: null,
+            unrealized: null,
+            activeTrades: null,
+            alpha: metrics?.alpha ?? null,
+            beta: metrics?.beta ?? null,
           };
         }
         setPnlByBookId(map);
@@ -103,6 +128,9 @@ export function BooksView() {
           [selectedBookId]: current[selectedBookId] ?? {
             realized: null,
             unrealized: null,
+            activeTrades: null,
+            alpha: null,
+            beta: null,
           },
         }));
       });
@@ -143,9 +171,9 @@ export function BooksView() {
     ? {
         realizedPnl: pnlByBookId[selectedBook.book_id]?.realized ?? null,
         unrealizedPnl: pnlByBookId[selectedBook.book_id]?.unrealized ?? null,
-        activeTrades: null,
-        alpha: null,
-        beta: null,
+        activeTrades: pnlByBookId[selectedBook.book_id]?.activeTrades ?? null,
+        alpha: pnlByBookId[selectedBook.book_id]?.alpha ?? null,
+        beta: pnlByBookId[selectedBook.book_id]?.beta ?? null,
       }
     : null;
 

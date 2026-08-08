@@ -7,25 +7,35 @@ import {
   type ISeriesApi,
   type UTCTimestamp,
 } from "lightweight-charts";
-import type { PricePoint } from "@/services/marketDataTypes";
-import { formatPrice } from "@/views/MarketDataView/formatters";
+import type { MarketDataClass, PricePoint } from "@/services/marketDataTypes";
+import {
+  formatPrice,
+  isRateQuoted,
+  rateToPercent,
+} from "@/views/MarketDataView/formatters";
 
 interface PriceSparklineProps {
   points: PricePoint[];
   currency?: string | null;
+  dataClass?: MarketDataClass | null;
   height?: number;
 }
 
 export function PriceSparkline({
   points,
   currency,
+  dataClass,
   height = 160,
 }: PriceSparklineProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const seriesRef = useRef<ISeriesApi<"Area"> | null>(null);
 
-  const chartData = useMemo(() => toChartData(points), [points]);
+  const asPercent = isRateQuoted(dataClass);
+  const chartData = useMemo(
+    () => toChartData(points, asPercent),
+    [points, asPercent],
+  );
   const canRenderChart = chartData.length >= 2;
 
   const stats = useMemo(() => {
@@ -91,6 +101,17 @@ export function PriceSparkline({
       lineWidth: 2,
       priceLineVisible: false,
       lastValueVisible: true,
+      priceFormat: asPercent
+        ? {
+            type: "custom",
+            formatter: (price: number) => `${price.toFixed(2)}%`,
+            minMove: 0.01,
+          }
+        : {
+            type: "price",
+            precision: 4,
+            minMove: 0.0001,
+          },
     });
 
     series.setData(chartData);
@@ -113,8 +134,8 @@ export function PriceSparkline({
       chartRef.current = null;
       seriesRef.current = null;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- recreate only when chart becomes eligible / height changes
-  }, [canRenderChart, height]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- recreate when chart becomes eligible / height / scale mode changes
+  }, [canRenderChart, height, asPercent]);
 
   useLayoutEffect(() => {
     if (!canRenderChart) return;
@@ -138,7 +159,7 @@ export function PriceSparkline({
     return (
       <div className="flex h-[160px] flex-col items-center justify-center gap-1 rounded border border-border bg-surface-alt">
         <span className="font-mono text-lg tabular-nums">
-          {formatPrice(points[0].price, currency)}
+          {formatPrice(points[0].price, currency, 4, dataClass)}
         </span>
         <span className="text-sm text-text-muted">Waiting for more ticks…</span>
       </div>
@@ -152,18 +173,18 @@ export function PriceSparkline({
         className="w-full min-w-0"
         style={{ height, minHeight: height }}
         role="img"
-        aria-label="Price history chart"
+        aria-label={asPercent ? "Rate history chart" : "Price history chart"}
       />
       {stats ? (
         <div className="mt-1 flex items-center justify-between px-1 text-sm text-text-muted">
           <span className="font-mono tabular-nums">
-            {formatPrice(stats.min, currency)}
+            {formatPrice(stats.min, currency, 4, dataClass)}
           </span>
           <span className="font-mono tabular-nums text-text">
-            {formatPrice(stats.last, currency)}
+            {formatPrice(stats.last, currency, 4, dataClass)}
           </span>
           <span className="font-mono tabular-nums">
-            {formatPrice(stats.max, currency)}
+            {formatPrice(stats.max, currency, 4, dataClass)}
           </span>
         </div>
       ) : null}
@@ -174,8 +195,9 @@ export function PriceSparkline({
 /**
  * Convert ms timestamps to ascending UTC seconds.
  * Collisions in the same second are bumped (+1s) so we never drop points.
+ * Rate-quoted instruments are scaled to percent units for the Y axis.
  */
-function toChartData(points: PricePoint[]) {
+function toChartData(points: PricePoint[], asPercent: boolean) {
   let lastTime = Number.NEGATIVE_INFINITY;
   return points.map((point) => {
     let time = Math.floor(point.t / 1000);
@@ -185,7 +207,7 @@ function toChartData(points: PricePoint[]) {
     lastTime = time;
     return {
       time: time as UTCTimestamp,
-      value: point.price,
+      value: asPercent ? rateToPercent(point.price) : point.price,
     };
   });
 }

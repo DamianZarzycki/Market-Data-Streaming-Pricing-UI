@@ -96,7 +96,7 @@ const TickRow = memo(function TickRow({
       <Td className={cn(cellPad, "font-semibold")}>{tick.symbol}</Td>
       <Td className={cellPad}>{tick.dataClass}</Td>
       <Td className={cn(cellPad, "text-right font-mono tabular-nums")}>
-        {formatPrice(tick.price, tick.currency)}
+        {formatPrice(tick.price, tick.currency, 4, tick.dataClass)}
       </Td>
       <Td className={cellPad}>
         <StatusPill tone={status}>{status}</StatusPill>

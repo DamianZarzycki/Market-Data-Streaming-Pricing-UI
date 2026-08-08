@@ -37,12 +37,9 @@ export function resolveInstrumentKey(
 ): string {
   if (typeof dto.symbol === "string" && dto.symbol) return dto.symbol;
   if (typeof dto.curve_name === "string" && dto.curve_name) return dto.curve_name;
-  if (resolveDataClass(dto) === "IRS") {
-    const currency =
-      typeof dto.currency === "string" && dto.currency ? dto.currency : "";
-    return currency ? `IRS:${currency}` : "IRS";
-  }
+  // Prefer the snapshot / stream key (e.g. "IRS") — do not invent IRS:USD from currency.
   if (snapshotKey) return snapshotKey;
+  if (resolveDataClass(dto) === "IRS") return "IRS";
   return "UNKNOWN";
 }
 
