@@ -26,7 +26,7 @@ export const TradesTable = memo(function TradesTable({
 }: TradesTableProps) {
   const density = useDensity();
   const cellPad =
-    density === "compact" ? "px-2 py-1 text-sm" : "px-3 py-2 text-base";
+    density === "compact" ? "px-2 py-1 text-sm" : "px-2.5 py-1.5 text-sm";
 
   if (trades.length === 0) {
     return (

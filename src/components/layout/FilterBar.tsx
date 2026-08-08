@@ -1,5 +1,4 @@
 import type { ReactNode } from "react";
-import { cn } from "@/lib/cn";
 
 interface FilterBarProps {
   collapsed: boolean;
@@ -18,10 +17,7 @@ export function FilterBar({
 }: FilterBarProps) {
   return (
     <aside
-      className={cn(
-        "flex flex-row flex-wrap gap-x-8 gap-y-3 overflow-hidden rounded border border-border bg-surface px-4 py-3",
-        collapsed ? "items-center" : "items-end",
-      )}
+      className="flex flex-row flex-wrap items-center gap-x-6 gap-y-2 overflow-hidden rounded border border-border bg-surface px-3 py-2"
       aria-label={ariaLabel}
     >
       <button

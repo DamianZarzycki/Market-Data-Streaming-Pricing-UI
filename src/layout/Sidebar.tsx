@@ -13,7 +13,7 @@ export function Sidebar() {
             end={item.path === "/"}
             className={({ isActive }) =>
               cn(
-                "rounded px-3 py-2 text-base text-text-muted hover:bg-surface-alt hover:text-text",
+                "rounded px-2.5 py-1.5 text-sm text-text-muted hover:bg-surface-alt hover:text-text",
                 isActive &&
                   "bg-surface-alt text-text shadow-[inset_3px_0_0_var(--color-accent)]",
               )

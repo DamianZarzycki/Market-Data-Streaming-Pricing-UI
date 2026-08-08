@@ -24,6 +24,12 @@ import {
   type RowLimit,
 } from "@/views/MarketDataView/MarketDataFilters";
 import { MarketDataSummaryBar } from "@/views/MarketDataView/MarketDataSummaryBar";
+import {
+  nextTickSort,
+  sortTickRows,
+  type TickSortKey,
+  type TickSortState,
+} from "@/views/MarketDataView/tickSort";
 import { TicksTable } from "@/views/MarketDataView/TicksTable";
 
 export function MarketDataView() {
@@ -40,6 +46,7 @@ export function MarketDataView() {
   const [selectedDataClass, setSelectedDataClass] =
     useState<DataClassFilter>("ALL");
   const [rowLimit, setRowLimit] = useState<RowLimit>(25);
+  const [sort, setSort] = useState<TickSortState | null>(null);
   const [selectedInstrumentKey, setSelectedInstrumentKey] = useState<
     string | null
   >(null);
@@ -117,10 +124,20 @@ export function MarketDataView() {
     });
   }, [ticks, symbolQuery, selectedDataClass]);
 
+  const sortedTicks = useMemo(() => {
+    if (!sort) return filteredTicks;
+    // Status ranks depend on wall-clock age; other keys ignore nowMs.
+    return sortTickRows(filteredTicks, sort, nowMs);
+  }, [filteredTicks, sort, nowMs]);
+
   const visibleTicks = useMemo(
-    () => filteredTicks.slice(0, rowLimit),
-    [filteredTicks, rowLimit],
+    () => sortedTicks.slice(0, rowLimit),
+    [sortedTicks, rowLimit],
   );
+
+  const handleSortChange = useCallback((key: TickSortKey) => {
+    setSort((current) => nextTickSort(current, key));
+  }, []);
 
   const selectedTick = useMemo(() => {
     if (!selectedInstrumentKey) return null;
@@ -211,6 +228,8 @@ export function MarketDataView() {
                 ticks={visibleTicks}
                 selectedInstrumentKey={selectedInstrumentKey}
                 nowMs={nowMs}
+                sort={sort}
+                onSortChange={handleSortChange}
                 onSelectTick={setSelectedInstrumentKey}
                 emptyMessage={
                   ticks.length === 0

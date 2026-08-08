@@ -18,14 +18,14 @@ export function WorkspaceLayout({
 }: WorkspaceLayoutProps) {
   return (
     <section
-      className="grid h-full min-h-0 flex-1 grid-rows-[auto_minmax(0,1fr)] gap-4 overflow-hidden"
+      className="grid h-full min-h-0 flex-1 grid-rows-[auto_minmax(0,1fr)] gap-3 overflow-hidden"
       aria-label={ariaLabel}
     >
       {filters}
 
       <div
         className={cn(
-          "grid min-h-0 gap-4",
+          "grid min-h-0 gap-3",
           drawerCollapsed
             ? "grid-cols-[minmax(0,1fr)_auto]"
             : "grid-cols-[minmax(0,1fr)_var(--spacing-side-drawer)] max-[1200px]:grid-cols-[minmax(0,1fr)_var(--spacing-side-drawer-sm)]",

@@ -52,55 +52,55 @@ export function MarketDataFilters({
         </Button>
       }
     >
-      <div className="flex min-w-[12rem] flex-col gap-2">
-        <Field label="Symbol">
-          <input
-            type="search"
-            value={symbolQuery}
-            onChange={(event) => onSymbolQueryChange(event.target.value)}
-            placeholder="Filter by symbol…"
-            aria-label="Filter by symbol"
-            className="rounded border border-border bg-surface-alt px-3 py-2 text-base text-text placeholder:text-text-muted focus:border-accent focus:outline-none"
-          />
-        </Field>
-      </div>
+      <Field label="Symbol" orientation="horizontal" className="min-w-[12rem]">
+        <input
+          type="search"
+          value={symbolQuery}
+          onChange={(event) => onSymbolQueryChange(event.target.value)}
+          placeholder="Filter by symbol…"
+          aria-label="Filter by symbol"
+          className="rounded border border-border bg-surface-alt px-2.5 py-1.5 text-sm text-text placeholder:text-text-muted focus:border-accent focus:outline-none"
+        />
+      </Field>
 
-      <div className="flex min-w-[10rem] flex-col gap-2">
-        <Field label="Data Class">
-          <Select
-            value={selectedDataClass}
-            aria-label="Filter by data class"
-            onChange={(event) =>
-              onDataClassChange(event.target.value as DataClassFilter)
-            }
-          >
-            <option value="ALL">All</option>
-            {MARKET_DATA_CLASSES.map((dataClass) => (
-              <option key={dataClass} value={dataClass}>
-                {dataClass}
-              </option>
-            ))}
-          </Select>
-        </Field>
-      </div>
+      <Field
+        label="Data Class"
+        orientation="horizontal"
+        className="min-w-[10rem]"
+      >
+        <Select
+          value={selectedDataClass}
+          aria-label="Filter by data class"
+          className="py-1.5"
+          onChange={(event) =>
+            onDataClassChange(event.target.value as DataClassFilter)
+          }
+        >
+          <option value="ALL">All</option>
+          {MARKET_DATA_CLASSES.map((dataClass) => (
+            <option key={dataClass} value={dataClass}>
+              {dataClass}
+            </option>
+          ))}
+        </Select>
+      </Field>
 
-      <div className="flex min-w-[7rem] flex-col gap-2">
-        <Field label="Rows">
-          <Select
-            value={rowLimit}
-            aria-label="Rows displayed"
-            onChange={(event) =>
-              onRowLimitChange(Number(event.target.value) as RowLimit)
-            }
-          >
-            {ROW_LIMIT_OPTIONS.map((limit) => (
-              <option key={limit} value={limit}>
-                {limit}
-              </option>
-            ))}
-          </Select>
-        </Field>
-      </div>
+      <Field label="Rows" orientation="horizontal" className="min-w-[7rem]">
+        <Select
+          value={rowLimit}
+          aria-label="Rows displayed"
+          className="py-1.5"
+          onChange={(event) =>
+            onRowLimitChange(Number(event.target.value) as RowLimit)
+          }
+        >
+          {ROW_LIMIT_OPTIONS.map((limit) => (
+            <option key={limit} value={limit}>
+              {limit}
+            </option>
+          ))}
+        </Select>
+      </Field>
     </FilterBar>
   );
 }

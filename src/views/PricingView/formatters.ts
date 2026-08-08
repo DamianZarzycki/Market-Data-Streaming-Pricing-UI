@@ -1,6 +1,5 @@
 export {
   formatNumber,
-  formatPnl,
   pnlClass,
 } from "@/views/BlotterView/formatters";
 
@@ -31,7 +30,7 @@ export function formatAge(ageMs: number): string {
 
 export function formatFairValue(
   value: number | null | undefined,
-  options?: { currencyPrefix?: boolean },
+  currency?: string | null,
 ): string {
   if (value === undefined || value === null || Number.isNaN(value)) {
     return "—";
@@ -40,7 +39,26 @@ export function formatFairValue(
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   });
-  return options?.currencyPrefix ? `$${amount}` : amount;
+  return currency ? `${amount} ${currency}` : amount;
+}
+
+export function formatPnl(
+  value: number | undefined | null,
+  currency?: string | null,
+): string {
+  if (value === undefined || value === null || Number.isNaN(value)) {
+    return "—";
+  }
+  const absolute = Math.abs(value).toLocaleString("en-US", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+  const sign = value > 0 ? "+" : value < 0 ? "−" : "";
+  if (currency) {
+    return `${sign}${absolute} ${currency}`;
+  }
+  // Aggregate / unknown currency — keep a generic money marker.
+  return `${sign}$${absolute}`;
 }
 
 export function formatAlphaBeta(

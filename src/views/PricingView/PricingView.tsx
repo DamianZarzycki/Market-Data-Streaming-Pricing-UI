@@ -33,6 +33,12 @@ import {
   type StatusFilter,
 } from "@/views/PricingView/PricingFilters";
 import { PricingSummaryBar } from "@/views/PricingView/PricingSummaryBar";
+import {
+  nextValuationSort,
+  sortValuationRows,
+  type ValuationSortKey,
+  type ValuationSortState,
+} from "@/views/PricingView/valuationSort";
 import { ValuationsTable } from "@/views/PricingView/ValuationsTable";
 
 const METRICS_POLL_MS = 5_000;
@@ -51,6 +57,7 @@ export function PricingView() {
   const [selectedAssetClass, setSelectedAssetClass] =
     useState<AssetClassFilter>("ALL");
   const [selectedStatus, setSelectedStatus] = useState<StatusFilter>("ALL");
+  const [sort, setSort] = useState<ValuationSortState | null>(null);
   const [selectedTradeId, setSelectedTradeId] = useState<string | null>(null);
   const [filtersCollapsed, setFiltersCollapsed] = useState(false);
   const [drawerCollapsed, setDrawerCollapsed] = useState(false);
@@ -162,6 +169,15 @@ export function PricingView() {
     });
   }, [rows, selectedBookId, selectedAssetClass, selectedStatus, nowMs]);
 
+  const sortedRows = useMemo(() => {
+    if (!sort) return filteredRows;
+    return sortValuationRows(filteredRows, sort, nowMs);
+  }, [filteredRows, sort, nowMs]);
+
+  const handleSortChange = useCallback((key: ValuationSortKey) => {
+    setSort((current) => nextValuationSort(current, key));
+  }, []);
+
   const liveCount = useMemo(
     () =>
       filteredRows.filter(
@@ -262,9 +278,11 @@ export function PricingView() {
               </div>
             ) : (
               <ValuationsTable
-                rows={filteredRows}
+                rows={sortedRows}
                 selectedTradeId={selectedTradeId}
                 nowMs={nowMs}
+                sort={sort}
+                onSortChange={handleSortChange}
                 onSelectRow={setSelectedTradeId}
                 emptyMessage={
                   rows.length === 0

@@ -10,7 +10,7 @@ import { TopBar } from "@/layout/TopBar";
 export type { Density };
 
 export function AppShell() {
-  const [density, setDensity] = useState<Density>("comfortable");
+  const [density, setDensity] = useState<Density>("compact");
 
   const toggleDensity = () =>
     setDensity((current) =>
@@ -29,7 +29,7 @@ export function AppShell() {
           onToggleDensity={toggleDensity}
         />
         <Sidebar />
-        <main className="flex min-h-0 flex-col overflow-hidden p-6">
+        <main className="flex min-h-0 flex-col overflow-hidden p-4">
           <Outlet />
         </main>
       </div>

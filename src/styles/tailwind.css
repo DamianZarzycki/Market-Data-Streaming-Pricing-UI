@@ -26,23 +26,23 @@
   --color-positive: #22c55e;
   --color-negative: #ef4444;
 
-  /* Typography */
+  /* Typography — denser scale for data-heavy trading views */
   --font-sans:
     "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --font-mono: "JetBrains Mono", "SFMono-Regular", Menlo, monospace;
-  --text-sm: 12px;
-  --text-base: 14px;
-  --text-lg: 18px;
-  --text-xl: 22px;
+  --text-sm: 11px;
+  --text-base: 12px;
+  --text-lg: 15px;
+  --text-xl: 18px;
 
   /* Radius */
   --radius: 8px;
 
   /* Layout dimensions */
-  --spacing-topbar: 56px;
-  --spacing-sidebar: 220px;
-  --spacing-side-drawer: 340px;
-  --spacing-side-drawer-sm: 280px;
+  --spacing-topbar: 48px;
+  --spacing-sidebar: 200px;
+  --spacing-side-drawer: 320px;
+  --spacing-side-drawer-sm: 260px;
 }
 
 @layer base {
@@ -57,7 +57,7 @@
     color: var(--color-text);
     font-family: var(--font-sans);
     font-size: var(--text-base);
-    line-height: 1.5;
+    line-height: 1.4;
     -webkit-font-smoothing: antialiased;
   }
 

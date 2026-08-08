@@ -11,25 +11,49 @@ import {
   formatPnl,
   pnlClass,
 } from "@/views/PricingView/formatters";
+import type {
+  ValuationSortKey,
+  ValuationSortState,
+} from "@/views/PricingView/valuationSort";
 
 interface ValuationsTableProps {
   rows: PricingValuationRow[];
   selectedTradeId: string | null;
   nowMs: number;
+  sort: ValuationSortState | null;
+  onSortChange: (key: ValuationSortKey) => void;
   onSelectRow: (tradeId: string) => void;
   emptyMessage?: string;
 }
+
+const COLUMNS: {
+  key: ValuationSortKey;
+  label: string;
+  align?: "left" | "right";
+  mono?: boolean;
+}[] = [
+  { key: "tradeId", label: "Trade" },
+  { key: "symbol", label: "Symbol" },
+  { key: "book", label: "Book" },
+  { key: "assetClass", label: "Class" },
+  { key: "fairValue", label: "Fair Value", align: "right", mono: true },
+  { key: "unrealizedPnl", label: "Unrealized", align: "right", mono: true },
+  { key: "status", label: "Status" },
+  { key: "updated", label: "Updated", mono: true },
+];
 
 export const ValuationsTable = memo(function ValuationsTable({
   rows,
   selectedTradeId,
   nowMs,
+  sort,
+  onSortChange,
   onSelectRow,
   emptyMessage = "No valuations match the current filters.",
 }: ValuationsTableProps) {
   const density = useDensity();
   const cellPad =
-    density === "compact" ? "px-2 py-1 text-sm" : "px-3 py-2 text-base";
+    density === "compact" ? "px-2 py-1 text-sm" : "px-2.5 py-1.5 text-sm";
 
   if (rows.length === 0) {
     return (
@@ -43,18 +67,22 @@ export const ValuationsTable = memo(function ValuationsTable({
     <table className="w-full border-collapse text-base">
       <thead>
         <tr>
-          <Th className={cellPad}>Trade</Th>
-          <Th className={cellPad}>Symbol</Th>
-          <Th className={cellPad}>Book</Th>
-          <Th className={cellPad}>Class</Th>
-          <Th className={cn(cellPad, "text-right font-mono tabular-nums")}>
-            Fair Value
-          </Th>
-          <Th className={cn(cellPad, "text-right font-mono tabular-nums")}>
-            Unrealized
-          </Th>
-          <Th className={cellPad}>Status</Th>
-          <Th className={cn(cellPad, "font-mono tabular-nums")}>Updated</Th>
+          {COLUMNS.map((column) => (
+            <SortableTh
+              key={column.key}
+              sortKey={column.key}
+              sort={sort}
+              onSortChange={onSortChange}
+              className={cn(
+                cellPad,
+                column.align === "right" && "text-right",
+                column.mono && "font-mono tabular-nums",
+              )}
+              align={column.align ?? "left"}
+            >
+              {column.label}
+            </SortableTh>
+          ))}
         </tr>
       </thead>
       <tbody>
@@ -72,6 +100,75 @@ export const ValuationsTable = memo(function ValuationsTable({
     </table>
   );
 });
+
+interface SortableThProps {
+  sortKey: ValuationSortKey;
+  sort: ValuationSortState | null;
+  onSortChange: (key: ValuationSortKey) => void;
+  children: ReactNode;
+  className?: string;
+  align?: "left" | "right";
+}
+
+function SortableTh({
+  sortKey,
+  sort,
+  onSortChange,
+  children,
+  className,
+  align = "left",
+}: SortableThProps) {
+  const active = sort?.key === sortKey;
+  const ariaSort = active
+    ? sort.dir === "asc"
+      ? "ascending"
+      : "descending"
+    : "none";
+
+  return (
+    <th
+      aria-sort={ariaSort}
+      className={cn(
+        "sticky top-0 z-10 border-b border-border bg-surface text-left text-sm font-semibold uppercase tracking-[0.03em] text-text-muted",
+        className,
+      )}
+    >
+      <button
+        type="button"
+        onClick={() => onSortChange(sortKey)}
+        className={cn(
+          "inline-flex w-full cursor-pointer items-center gap-1 text-inherit uppercase tracking-[0.03em]",
+          "hover:text-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent",
+          active && "text-text",
+          align === "right" && "justify-end",
+        )}
+      >
+        <span>{children}</span>
+        <SortIndicator active={active} dir={active ? sort.dir : null} />
+      </button>
+    </th>
+  );
+}
+
+function SortIndicator({
+  active,
+  dir,
+}: {
+  active: boolean;
+  dir: ValuationSortState["dir"] | null;
+}) {
+  return (
+    <span
+      className={cn(
+        "inline-block w-3 font-mono text-[0.7rem] leading-none",
+        active ? "text-accent" : "text-text-muted/40",
+      )}
+      aria-hidden
+    >
+      {active && dir === "asc" ? "▲" : active && dir === "desc" ? "▼" : "◇"}
+    </span>
+  );
+}
 
 interface ValuationRowProps {
   row: PricingValuationRow;
@@ -104,7 +201,7 @@ const ValuationRow = memo(function ValuationRow({
       <Td className={cellPad}>{row.bookName}</Td>
       <Td className={cellPad}>{row.assetClass}</Td>
       <Td className={cn(cellPad, "text-right font-mono tabular-nums")}>
-        {formatFairValue(row.fairValue)}
+        {formatFairValue(row.fairValue, row.currency)}
       </Td>
       <Td
         className={cn(
@@ -113,7 +210,7 @@ const ValuationRow = memo(function ValuationRow({
           pnlClass(row.unrealizedPnl),
         )}
       >
-        {formatPnl(row.unrealizedPnl)}
+        {formatPnl(row.unrealizedPnl, row.currency)}
       </Td>
       <Td className={cellPad}>
         <StatusPill tone={status}>{status}</StatusPill>
@@ -124,25 +221,6 @@ const ValuationRow = memo(function ValuationRow({
     </tr>
   );
 });
-
-function Th({
-  children,
-  className,
-}: {
-  children: ReactNode;
-  className?: string;
-}) {
-  return (
-    <th
-      className={cn(
-        "sticky top-0 z-10 border-b border-border bg-surface text-left text-sm font-semibold uppercase tracking-[0.03em] text-text-muted",
-        className,
-      )}
-    >
-      {children}
-    </th>
-  );
-}
 
 function Td({
   children,

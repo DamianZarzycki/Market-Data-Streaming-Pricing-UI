@@ -12,15 +12,15 @@ export function TopBar({ density, onToggleDensity, className }: TopBarProps) {
   return (
     <header
       className={cn(
-        "flex items-center justify-between border-b border-border bg-surface px-6",
+        "flex items-center justify-between border-b border-border bg-surface px-4",
         className,
       )}
     >
       <div className="flex items-baseline gap-2">
-        <span className="text-lg text-accent" aria-hidden>
+        <span className="text-base text-accent" aria-hidden>
           ◆
         </span>
-        <span className="text-lg font-semibold">Trading UI</span>
+        <span className="text-base font-semibold">Trading UI</span>
         <span className="text-sm text-text-muted">Market Data &amp; Pricing</span>
       </div>
 

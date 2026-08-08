@@ -64,20 +64,18 @@ export function PricingDrawer({
             <dl className="m-0 grid grid-cols-2 gap-x-3 gap-y-3">
               <Metric
                 label="Fair value"
-                value={formatFairValue(row.fairValue, {
-                  currencyPrefix: true,
-                })}
+                value={formatFairValue(row.fairValue, row.currency)}
                 mono
               />
               <Metric
                 label="Unrealized"
-                value={formatPnl(row.unrealizedPnl)}
+                value={formatPnl(row.unrealizedPnl, row.currency)}
                 mono
                 className={pnlClass(row.unrealizedPnl)}
               />
               <Metric
                 label="Realized"
-                value={formatPnl(row.realizedPnl)}
+                value={formatPnl(row.realizedPnl, row.currency)}
                 mono
                 className={pnlClass(row.realizedPnl)}
               />

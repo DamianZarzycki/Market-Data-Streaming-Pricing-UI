@@ -157,8 +157,9 @@ export function appendPriceHistory(
 }
 
 /**
- * Upsert by instrumentKey (latest wins). Recently updated instruments float to
- * the top so the table shows one live row per symbol, not a tick log.
+ * Upsert by instrumentKey (latest wins). Keep existing row order stable so live
+ * ticks update cells in place instead of reshuffling the table. Brand-new
+ * instruments are appended at the end.
  */
 export function mergeTickRows(
   current: MarketTickRow[],
@@ -167,32 +168,28 @@ export function mergeTickRows(
 ): MarketTickRow[] {
   if (incoming.length === 0) return current;
 
-  const byKey = new Map<string, MarketTickRow>();
-  for (const row of current) {
-    byKey.set(row.instrumentKey, row);
-  }
-
-  const touchedOrder: string[] = [];
+  const incomingByKey = new Map<string, MarketTickRow>();
   for (const row of incoming) {
-    byKey.set(row.instrumentKey, {
+    incomingByKey.set(row.instrumentKey, {
       ...row,
       // Stable React row identity across updates for the same instrument.
       id: row.instrumentKey,
     });
-    const existing = touchedOrder.indexOf(row.instrumentKey);
-    if (existing >= 0) touchedOrder.splice(existing, 1);
-    touchedOrder.push(row.instrumentKey);
   }
 
-  const touched = new Set(touchedOrder);
-  const updated = [...touchedOrder]
-    .reverse()
-    .map((key) => byKey.get(key)!)
-    .filter(Boolean);
-  const rest = current
-    .filter((row) => !touched.has(row.instrumentKey))
-    .map((row) => byKey.get(row.instrumentKey)!)
-    .filter(Boolean);
+  const seen = new Set<string>();
+  const merged: MarketTickRow[] = [];
 
-  return [...updated, ...rest].slice(0, maxRows);
+  for (const row of current) {
+    seen.add(row.instrumentKey);
+    merged.push(incomingByKey.get(row.instrumentKey) ?? row);
+  }
+
+  for (const [key, row] of incomingByKey) {
+    if (!seen.has(key)) {
+      merged.push(row);
+    }
+  }
+
+  return merged.slice(0, maxRows);
 }

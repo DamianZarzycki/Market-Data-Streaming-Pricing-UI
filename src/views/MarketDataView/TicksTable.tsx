@@ -9,25 +9,45 @@ import {
   formatPrice,
   formatTimestamp,
 } from "@/views/MarketDataView/formatters";
+import type {
+  TickSortKey,
+  TickSortState,
+} from "@/views/MarketDataView/tickSort";
 
 interface TicksTableProps {
   ticks: MarketTickRow[];
   selectedInstrumentKey: string | null;
   nowMs: number;
+  sort: TickSortState | null;
+  onSortChange: (key: TickSortKey) => void;
   onSelectTick: (instrumentKey: string) => void;
   emptyMessage?: string;
 }
+
+const COLUMNS: {
+  key: TickSortKey;
+  label: string;
+  align?: "left" | "right";
+}[] = [
+  { key: "time", label: "Time" },
+  { key: "symbol", label: "Symbol" },
+  { key: "dataClass", label: "Data Class" },
+  { key: "price", label: "Price / Value", align: "right" },
+  { key: "status", label: "Status" },
+];
 
 export const TicksTable = memo(function TicksTable({
   ticks,
   selectedInstrumentKey,
   nowMs,
+  sort,
+  onSortChange,
   onSelectTick,
   emptyMessage = "No ticks match the current filters.",
 }: TicksTableProps) {
   const density = useDensity();
   const cellPad =
-    density === "compact" ? "px-2 py-1 text-sm" : "px-3 py-2 text-base";
+    density === "compact" ? "px-2 py-1 text-sm" : "px-2.5 py-1.5 text-sm";
 
   if (ticks.length === 0) {
     return (
@@ -41,13 +61,21 @@ export const TicksTable = memo(function TicksTable({
     <table className="w-full border-collapse text-base">
       <thead>
         <tr>
-          <Th className={cellPad}>Time</Th>
-          <Th className={cellPad}>Symbol</Th>
-          <Th className={cellPad}>Data Class</Th>
-          <Th className={cn(cellPad, "text-right font-mono tabular-nums")}>
-            Price / Value
-          </Th>
-          <Th className={cellPad}>Status</Th>
+          {COLUMNS.map((column) => (
+            <SortableTh
+              key={column.key}
+              sortKey={column.key}
+              sort={sort}
+              onSortChange={onSortChange}
+              className={cn(
+                cellPad,
+                column.align === "right" && "text-right font-mono tabular-nums",
+              )}
+              align={column.align ?? "left"}
+            >
+              {column.label}
+            </SortableTh>
+          ))}
         </tr>
       </thead>
       <tbody>
@@ -65,6 +93,75 @@ export const TicksTable = memo(function TicksTable({
     </table>
   );
 });
+
+interface SortableThProps {
+  sortKey: TickSortKey;
+  sort: TickSortState | null;
+  onSortChange: (key: TickSortKey) => void;
+  children: ReactNode;
+  className?: string;
+  align?: "left" | "right";
+}
+
+function SortableTh({
+  sortKey,
+  sort,
+  onSortChange,
+  children,
+  className,
+  align = "left",
+}: SortableThProps) {
+  const active = sort?.key === sortKey;
+  const ariaSort = active
+    ? sort.dir === "asc"
+      ? "ascending"
+      : "descending"
+    : "none";
+
+  return (
+    <th
+      aria-sort={ariaSort}
+      className={cn(
+        "sticky top-0 z-10 border-b border-border bg-surface text-left text-sm font-semibold uppercase tracking-[0.03em] text-text-muted",
+        className,
+      )}
+    >
+      <button
+        type="button"
+        onClick={() => onSortChange(sortKey)}
+        className={cn(
+          "inline-flex w-full cursor-pointer items-center gap-1 text-inherit uppercase tracking-[0.03em]",
+          "hover:text-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent",
+          active && "text-text",
+          align === "right" && "justify-end",
+        )}
+      >
+        <span>{children}</span>
+        <SortIndicator active={active} dir={active ? sort.dir : null} />
+      </button>
+    </th>
+  );
+}
+
+function SortIndicator({
+  active,
+  dir,
+}: {
+  active: boolean;
+  dir: TickSortState["dir"] | null;
+}) {
+  return (
+    <span
+      className={cn(
+        "inline-block w-3 font-mono text-[0.7rem] leading-none",
+        active ? "text-accent" : "text-text-muted/40",
+      )}
+      aria-hidden
+    >
+      {active && dir === "asc" ? "▲" : active && dir === "desc" ? "▼" : "◇"}
+    </span>
+  );
+}
 
 interface TickRowProps {
   tick: MarketTickRow;
@@ -104,25 +201,6 @@ const TickRow = memo(function TickRow({
     </tr>
   );
 });
-
-function Th({
-  children,
-  className,
-}: {
-  children: ReactNode;
-  className?: string;
-}) {
-  return (
-    <th
-      className={cn(
-        "sticky top-0 z-10 border-b border-border bg-surface text-left text-sm font-semibold uppercase tracking-[0.03em] text-text-muted",
-        className,
-      )}
-    >
-      {children}
-    </th>
-  );
-}
 
 function Td({
   children,

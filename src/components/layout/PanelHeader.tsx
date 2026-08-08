@@ -8,9 +8,9 @@ interface PanelHeaderProps {
 
 export function PanelHeader({ title, description, actions }: PanelHeaderProps) {
   return (
-    <header className="flex shrink-0 items-center justify-between gap-2 border-b border-border px-4 py-3">
+    <header className="flex shrink-0 items-center justify-between gap-2 border-b border-border px-3 py-2">
       <div>
-        <h1 className="text-base font-semibold">{title}</h1>
+        <h1 className="text-sm font-semibold">{title}</h1>
         {description ? (
           <p className="text-sm text-text-muted">{description}</p>
         ) : null}

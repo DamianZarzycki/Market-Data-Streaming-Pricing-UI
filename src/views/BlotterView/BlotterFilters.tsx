@@ -44,61 +44,62 @@ export function BlotterFilters({
         </Button>
       }
     >
-      <div className="flex min-w-[10rem] flex-col gap-2">
-        <Field label="Book">
-          <Select
-            value={selectedBookId}
-            aria-label="Filter by book"
-            onChange={(event) =>
-              onBookChange(event.target.value as BookFilter)
-            }
-            disabled={books.length === 0}
-          >
-            <option value="ALL">All</option>
-            {books.map((book) => (
-              <option key={book.book_id} value={book.book_id}>
-                {book.name}
-              </option>
-            ))}
-          </Select>
-        </Field>
-      </div>
+      <Field label="Book" orientation="horizontal" className="min-w-[10rem]">
+        <Select
+          value={selectedBookId}
+          aria-label="Filter by book"
+          className="py-1.5"
+          onChange={(event) =>
+            onBookChange(event.target.value as BookFilter)
+          }
+          disabled={books.length === 0}
+        >
+          <option value="ALL">All</option>
+          {books.map((book) => (
+            <option key={book.book_id} value={book.book_id}>
+              {book.name}
+            </option>
+          ))}
+        </Select>
+      </Field>
 
-      <div className="flex min-w-[10rem] flex-col gap-2">
-        <Field label="Asset Class">
-          <Select
-            value={selectedAssetClass}
-            aria-label="Filter by asset class"
-            onChange={(event) =>
-              onAssetClassChange(event.target.value as AssetClassFilter)
-            }
-          >
-            <option value="ALL">All</option>
-            {ASSET_CLASSES.map((assetClass) => (
-              <option key={assetClass} value={assetClass}>
-                {assetClass}
-              </option>
-            ))}
-          </Select>
-        </Field>
-      </div>
+      <Field
+        label="Asset Class"
+        orientation="horizontal"
+        className="min-w-[10rem]"
+      >
+        <Select
+          value={selectedAssetClass}
+          aria-label="Filter by asset class"
+          className="py-1.5"
+          onChange={(event) =>
+            onAssetClassChange(event.target.value as AssetClassFilter)
+          }
+        >
+          <option value="ALL">All</option>
+          {ASSET_CLASSES.map((assetClass) => (
+            <option key={assetClass} value={assetClass}>
+              {assetClass}
+            </option>
+          ))}
+        </Select>
+      </Field>
 
-      <div className="flex min-w-[8rem] flex-col gap-2">
-        <Field label="Status">
-          <Select
-            value={selectedStatus}
-            aria-label="Filter by status"
-            onChange={(event) =>
-              onStatusChange(event.target.value as TradeStatus | "ALL")
-            }
-          >
-            <option value="ALL">All</option>
-            <option value="ACTIVE">Active</option>
-            <option value="CLOSED">Closed</option>
-            <option value="CANCELLED">Cancelled</option>
-          </Select>
-        </Field>
-      </div>
+      <Field label="Status" orientation="horizontal" className="min-w-[8rem]">
+        <Select
+          value={selectedStatus}
+          aria-label="Filter by status"
+          className="py-1.5"
+          onChange={(event) =>
+            onStatusChange(event.target.value as TradeStatus | "ALL")
+          }
+        >
+          <option value="ALL">All</option>
+          <option value="ACTIVE">Active</option>
+          <option value="CLOSED">Closed</option>
+          <option value="CANCELLED">Cancelled</option>
+        </Select>
+      </Field>
     </FilterBar>
   );
 }

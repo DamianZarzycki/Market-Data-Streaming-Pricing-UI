@@ -21,7 +21,7 @@ export function MetricStrip({
   return (
     <div
       className={cn(
-        "grid shrink-0 gap-2 border-b border-border bg-surface-alt px-4 py-2",
+        "grid shrink-0 gap-2 border-b border-border bg-surface-alt px-3 py-1.5",
         columnsClassName,
       )}
       role="region"
@@ -34,7 +34,7 @@ export function MetricStrip({
           </span>
           <span
             className={cn(
-              "overflow-hidden font-mono text-base text-ellipsis whitespace-nowrap tabular-nums",
+              "overflow-hidden font-mono text-sm text-ellipsis whitespace-nowrap tabular-nums",
               item.className,
             )}
           >

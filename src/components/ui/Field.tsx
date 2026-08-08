@@ -5,12 +5,33 @@ interface FieldProps {
   label: string;
   children: ReactNode;
   className?: string;
+  /** vertical = form stack; horizontal = compact filter row */
+  orientation?: "vertical" | "horizontal";
 }
 
-export function Field({ label, children, className }: FieldProps) {
+export function Field({
+  label,
+  children,
+  className,
+  orientation = "vertical",
+}: FieldProps) {
   return (
-    <label className={cn("flex flex-col gap-1", className)}>
-      <span className="text-sm text-text-muted">{label}</span>
+    <label
+      className={cn(
+        orientation === "horizontal"
+          ? "flex flex-row items-center gap-2"
+          : "flex flex-col gap-1",
+        className,
+      )}
+    >
+      <span
+        className={cn(
+          "text-sm text-text-muted",
+          orientation === "horizontal" && "shrink-0 whitespace-nowrap",
+        )}
+      >
+        {label}
+      </span>
       {children}
     </label>
   );
@@ -24,7 +45,7 @@ export function Select({ className, children, ...props }: SelectProps) {
   return (
     <select
       className={cn(
-        "rounded border border-border bg-surface-alt px-3 py-2 text-base text-text focus:border-accent focus:outline-none",
+        "rounded border border-border bg-surface-alt px-2.5 py-1.5 text-sm text-text focus:border-accent focus:outline-none",
         className,
       )}
       {...props}
