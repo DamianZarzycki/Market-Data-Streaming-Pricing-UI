@@ -6,21 +6,30 @@ import {
 } from "@/layout/DensityContext";
 import { Sidebar } from "@/layout/Sidebar";
 import { TopBar } from "@/layout/TopBar";
+import { cn } from "@/lib/cn";
 
 export type { Density };
 
 export function AppShell() {
   const [density, setDensity] = useState<Density>("compact");
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   const toggleDensity = () =>
     setDensity((current) =>
       current === "compact" ? "comfortable" : "compact",
     );
 
+  const toggleSidebar = () => setSidebarCollapsed((current) => !current);
+
   return (
     <DensityProvider density={density}>
       <div
-        className="grid h-screen grid-cols-[var(--spacing-sidebar)_1fr] grid-rows-[var(--spacing-topbar)_1fr]"
+        className={cn(
+          "grid h-screen grid-rows-[var(--spacing-topbar)_1fr]",
+          sidebarCollapsed
+            ? "grid-cols-[auto_1fr]"
+            : "grid-cols-[var(--spacing-sidebar)_1fr]",
+        )}
         data-density={density}
       >
         <TopBar
@@ -28,7 +37,10 @@ export function AppShell() {
           density={density}
           onToggleDensity={toggleDensity}
         />
-        <Sidebar />
+        <Sidebar
+          collapsed={sidebarCollapsed}
+          onToggleCollapse={toggleSidebar}
+        />
         <main className="flex min-h-0 flex-col overflow-hidden p-4">
           <Outlet />
         </main>

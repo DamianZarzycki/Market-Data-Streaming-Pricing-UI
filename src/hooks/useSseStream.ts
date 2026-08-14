@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { openSseStream, type SseStatus } from "@/services/sseClient";
+import { openSharedSseStream } from "@/services/sharedSseClient";
+import type { SseStatus } from "@/services/sseClient";
 
 interface UseSseStreamOptions {
   eventName?: string;
@@ -29,7 +30,7 @@ export function useSseStream<T>(
   useEffect(() => {
     if (!enabled) return;
 
-    const dispose = openSseStream<T>(url, {
+    const dispose = openSharedSseStream<T>(url, {
       eventName,
       onStatusChange: setStatus,
       onMessage: (data) =>

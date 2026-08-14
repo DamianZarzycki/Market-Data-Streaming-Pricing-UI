@@ -4,6 +4,8 @@ import { StatusPill } from "@/components/ui/StatusPill";
 interface TradeGenerationStatusBarProps {
   isRunning: boolean | null;
   totalGenerated: number | null;
+  intervalMs: number | null;
+  expectedRatePerSec: number | null;
   loading: boolean;
   onRefresh: () => void;
 }
@@ -11,6 +13,8 @@ interface TradeGenerationStatusBarProps {
 export function TradeGenerationStatusBar({
   isRunning,
   totalGenerated,
+  intervalMs,
+  expectedRatePerSec,
   loading,
   onRefresh,
 }: TradeGenerationStatusBarProps) {
@@ -48,6 +52,20 @@ export function TradeGenerationStatusBar({
           }
         />
         <Metric
+          label="INTERVAL"
+          value={intervalMs == null ? "—" : `${intervalMs} ms`}
+        />
+        <Metric
+          label="RATE"
+          value={
+            expectedRatePerSec == null
+              ? "—"
+              : running
+                ? `~${formatRate(expectedRatePerSec)}/s`
+                : "0/s"
+          }
+        />
+        <Metric
           label="TOTAL GENERATED"
           value={
             totalGenerated == null
@@ -62,6 +80,11 @@ export function TradeGenerationStatusBar({
       </Button>
     </div>
   );
+}
+
+function formatRate(rate: number): string {
+  if (Number.isInteger(rate)) return String(rate);
+  return rate.toFixed(2).replace(/\.?0+$/, "");
 }
 
 function Metric({ label, value }: { label: string; value: string }) {

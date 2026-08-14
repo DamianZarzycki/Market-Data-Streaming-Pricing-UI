@@ -14,6 +14,10 @@ import {
   rateToPercent,
 } from "@/views/MarketDataView/formatters";
 
+// #region agent log
+let __chartSetDataCalls = 0;
+// #endregion
+
 interface PriceSparklineProps {
   points: PricePoint[];
   currency?: string | null;
@@ -145,6 +149,12 @@ export function PriceSparkline({
 
     series.setData(chartData);
     chart.timeScale().fitContent();
+    // #region agent log
+    __chartSetDataCalls += 1;
+    if (__chartSetDataCalls % 20 === 0) {
+      fetch('http://127.0.0.1:7406/ingest/b990d8d1-4614-4157-88e1-24bf677abfbc',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'82b0ff'},body:JSON.stringify({sessionId:'82b0ff',hypothesisId:'H',location:'PriceSparkline.tsx:setData',message:'chart setData redraw',data:{setDataCalls:__chartSetDataCalls,points:chartData.length},timestamp:Date.now()})}).catch(()=>{});
+    }
+    // #endregion
   }, [chartData, canRenderChart]);
 
   if (points.length === 0) {

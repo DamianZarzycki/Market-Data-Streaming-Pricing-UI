@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { openSseStream, type SseStatus } from "@/services/sseClient";
+import { openSharedSseStream } from "@/services/sharedSseClient";
+import type { SseStatus } from "@/services/sseClient";
 import type { BlotterValuationDto } from "@/services/blotterTypes";
 import { endpoints } from "@/services/endpoints";
 
@@ -40,7 +41,7 @@ export function useBlotterLiveValuations(
 
     setStatus("CONNECTING");
 
-    const dispose = openSseStream<BlotterValuationDto>(
+    const dispose = openSharedSseStream<BlotterValuationDto>(
       endpoints.pricing.valuationStream,
       {
         eventName: "valuation_update",

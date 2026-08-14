@@ -7,6 +7,8 @@ export type SseStatus =
 export interface SseHandlers<T> {
   onMessage: (data: T) => void;
   onStatusChange?: (status: SseStatus) => void;
+  /** Frames seen by the shared EventSource (connection-level, not per tab). */
+  onReceivedCount?: (count: number) => void;
   onError?: (event: Event) => void;
   eventName?: string;
 }

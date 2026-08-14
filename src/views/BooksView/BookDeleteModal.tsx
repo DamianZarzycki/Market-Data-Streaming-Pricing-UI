@@ -1,7 +1,11 @@
-import { useEffect, useId, useState } from "react";
+import { useEffect, useId, useState, type ClipboardEvent, type DragEvent } from "react";
 import { Button } from "@/components/ui/Button";
 import { Field } from "@/components/ui/Field";
 import type { Book } from "@/domain/types";
+
+function blockNameClipboard(event: ClipboardEvent | DragEvent) {
+  event.preventDefault();
+}
 
 interface BookDeleteModalProps {
   book: Book;
@@ -71,8 +75,15 @@ export function BookDeleteModal({
         <div className="h-px bg-border" />
 
         <div className="flex flex-col gap-3 px-5 py-4">
-          <p className="text-sm">
-            Are you sure you want to delete “{book.name}”?
+          <p
+            className="select-none text-sm"
+            onCopy={blockNameClipboard}
+            onCut={blockNameClipboard}
+            onDragStart={blockNameClipboard}
+          >
+            Are you sure you want to delete “
+            <span className="select-none">{book.name}</span>
+            ”?
           </p>
           {blocked ? (
             <p className="text-sm text-stale">
@@ -87,14 +98,14 @@ export function BookDeleteModal({
           )}
 
           {!blocked ? (
-            <Field label={`Type “${book.name}” to confirm`}>
+            <Field label="Type the book name to confirm">
               <input
                 type="text"
                 autoFocus
                 autoComplete="off"
                 spellCheck={false}
                 value={confirmName}
-                placeholder={book.name}
+                placeholder="Book name"
                 disabled={busy}
                 aria-label={`Type ${book.name} to confirm deletion`}
                 onChange={(event) => setConfirmName(event.target.value)}

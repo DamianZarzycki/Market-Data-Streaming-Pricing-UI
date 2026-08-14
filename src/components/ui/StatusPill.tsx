@@ -1,10 +1,11 @@
 import type { ReactNode } from "react";
 import { cn } from "@/lib/cn";
 
-export type StatusTone = "live" | "stale" | "error";
+export type StatusTone = "live" | "up" | "stale" | "error";
 
 const toneClass: Record<StatusTone, string> = {
   live: "text-live",
+  up: "text-up",
   stale: "text-stale",
   error: "text-error",
 };
@@ -18,6 +19,7 @@ interface StatusPillProps {
 
 function normalizeTone(tone: string | undefined): StatusTone {
   const value = (tone ?? "live").toLowerCase();
+  if (value === "up") return "up";
   if (value === "stale") return "stale";
   if (value === "error") return "error";
   return "live";

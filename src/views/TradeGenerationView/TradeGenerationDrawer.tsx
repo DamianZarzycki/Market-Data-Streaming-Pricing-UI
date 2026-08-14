@@ -32,6 +32,8 @@ const DEPENDENCIES = [
 const IMPLEMENTED_API = [
   "GET /health",
   "GET /status",
+  "GET /config",
+  "PUT /config",
   "POST /start",
   "POST /stop",
   "GET /generate-once",
@@ -48,6 +50,7 @@ export function TradeGenerationDrawer({
     serviceUp == null ? "stale" : serviceUp ? "live" : "error";
   const label =
     serviceUp == null ? "…" : serviceUp ? "UP" : "DOWN";
+  const config = status?.config ?? null;
 
   return (
     <SideDrawer
@@ -64,8 +67,9 @@ export function TradeGenerationDrawer({
           <h3 className="mb-2 text-sm font-semibold">What this does</h3>
           <p className="text-sm text-text-muted">
             Builds random OPEN/CLOSE trade intentions and posts them to
-            trade-action-service. Continuous mode loops on an env tick
+            trade-action-service. Continuous mode loops on the runtime
             interval; manual once/batch work even when the worker is stopped.
+            Tune interval, weights, qty/price, and batch size via PUT /config.
           </p>
         </section>
 
@@ -90,8 +94,45 @@ export function TradeGenerationDrawer({
                     : String(status.total_generated)
                 }
               />
-              <Row label="thread" value="(omitted from API)" />
+              <Row
+                label="expected_rate_per_sec"
+                value={
+                  status?.expected_rate_per_sec == null
+                    ? "—"
+                    : String(status.expected_rate_per_sec)
+                }
+              />
             </dl>
+          </div>
+        </section>
+
+        <section aria-label="Active config">
+          <h3 className="mb-2 text-sm font-semibold">Active config</h3>
+          <div className="rounded border border-border bg-surface-alt px-3 py-2.5">
+            {config == null ? (
+              <p className="m-0 text-sm text-text-muted">—</p>
+            ) : (
+              <dl className="m-0 flex flex-col gap-2 text-sm">
+                <Row label="interval_ms" value={String(config.interval_ms)} />
+                <Row label="batch_size" value={String(config.batch_size)} />
+                <Row
+                  label="open_weight_pct"
+                  value={String(config.open_weight_pct)}
+                />
+                <Row
+                  label="close_weight_pct"
+                  value={String(config.close_weight_pct)}
+                />
+                <Row
+                  label="qty"
+                  value={`${config.qty_min}–${config.qty_max}`}
+                />
+                <Row
+                  label="price"
+                  value={`${config.price_min.toFixed(2)}–${config.price_max.toFixed(2)}`}
+                />
+              </dl>
+            )}
           </div>
         </section>
 

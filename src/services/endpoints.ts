@@ -54,6 +54,7 @@ export const endpoints = {
   tradeGeneration: {
     health: `${services.tradeGeneration}/health`,
     status: `${services.tradeGeneration}/status`,
+    config: `${services.tradeGeneration}/config`,
     start: `${services.tradeGeneration}/start`,
     stop: `${services.tradeGeneration}/stop`,
     generateOnce: `${services.tradeGeneration}/generate-once`,

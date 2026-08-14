@@ -129,6 +129,9 @@ export function PricingView() {
   }, []);
 
   const handleBatch = useCallback((batch: PricingValuationBatch) => {
+    if (batch.streamReceivedCount != null) {
+      setUpdates(batch.streamReceivedCount);
+    }
     if (batch.updates.size === 0) return;
 
     const now = Date.now();
@@ -148,7 +151,9 @@ export function PricingView() {
     }
 
     setRows((current) => mergeValuationRows(current, mapped));
-    setUpdates((count) => count + batch.eventsInBatch);
+    if (batch.streamReceivedCount == null) {
+      setUpdates((count) => count + batch.eventsInBatch);
+    }
     setUpdateTimestamps((current) =>
       recordUpdateTimestamps(current, symbols, now),
     );

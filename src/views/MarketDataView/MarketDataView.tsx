@@ -37,7 +37,15 @@ import {
 } from "@/views/MarketDataView/tickSort";
 import { TicksTable } from "@/views/MarketDataView/TicksTable";
 
+// #region agent log
+let __mdBatchCount = 0;
+let __mdRenderCount = 0;
+// #endregion
+
 export function MarketDataView() {
+  // #region agent log
+  __mdRenderCount += 1;
+  // #endregion
   const density = useDensity();
   const [ticks, setTicks] = useState<MarketTickRow[]>([]);
   const [priceHistory, setPriceHistory] = useState<Map<string, PricePoint[]>>(
@@ -67,7 +75,26 @@ export function MarketDataView() {
 
   useEffect(() => {
     const id = window.setInterval(() => setNowMs(Date.now()), 1000);
-    return () => window.clearInterval(id);
+    // #region agent log
+    let __heapTick = 0;
+    let __prevRenders = __mdRenderCount;
+    let __prevBatches = __mdBatchCount;
+    const __heapId = window.setInterval(() => {
+      __heapTick += 1;
+      const mem = (performance as unknown as { memory?: { usedJSHeapSize: number; totalJSHeapSize: number } }).memory;
+      const rendersDelta = __mdRenderCount - __prevRenders;
+      const batchesDelta = __mdBatchCount - __prevBatches;
+      __prevRenders = __mdRenderCount;
+      __prevBatches = __mdBatchCount;
+      fetch('http://127.0.0.1:7406/ingest/b990d8d1-4614-4157-88e1-24bf677abfbc',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'82b0ff'},body:JSON.stringify({sessionId:'82b0ff',hypothesisId:'G',location:'MarketDataView.tsx:heapProbe',message:'heap + render churn sample',data:{tick:__heapTick,usedMB:mem?Math.round(mem.usedJSHeapSize/1048576):null,totalMB:mem?Math.round(mem.totalJSHeapSize/1048576):null,rendersPer5s:rendersDelta,batchesPer5s:batchesDelta},timestamp:Date.now()})}).catch(()=>{});
+    }, 5000);
+    // #endregion
+    return () => {
+      window.clearInterval(id);
+      // #region agent log
+      window.clearInterval(__heapId);
+      // #endregion
+    };
   }, []);
 
   const seedFromSnapshot = useCallback(async () => {
@@ -104,7 +131,14 @@ export function MarketDataView() {
   }, [seedFromSnapshot]);
 
   const handleBatch = useCallback((batch: MarketDataBatch) => {
+    if (batch.streamReceivedCount != null) {
+      setTicksReceived(batch.streamReceivedCount);
+    }
     if (batch.rows.length === 0) return;
+
+    // #region agent log
+    __mdBatchCount += 1;
+    // #endregion
 
     setTicks((current) => mergeTickRows(current, batch.rows));
     setPriceHistory((current) => {
@@ -114,7 +148,9 @@ export function MarketDataView() {
       }
       return next;
     });
-    setTicksReceived((count) => count + batch.ticksInBatch);
+    if (batch.streamReceivedCount == null) {
+      setTicksReceived((count) => count + batch.ticksInBatch);
+    }
     setLastUpdate(batch.rows[0].timestamp);
     setError(null);
   }, []);

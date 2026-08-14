@@ -10,13 +10,16 @@ import type {
   PricePoint,
 } from "@/services/marketDataTypes";
 import { endpoints } from "@/services/endpoints";
-import { openSseStream, type SseStatus } from "@/services/sseClient";
+import { openSharedSseStream } from "@/services/sharedSseClient";
+import type { SseStatus } from "@/services/sseClient";
 
 const FLUSH_MS = 100;
 
 export interface MarketDataBatch {
   rows: MarketTickRow[];
   ticksInBatch: number;
+  /** Shared EventSource frame count; same value in every tab. */
+  streamReceivedCount?: number;
 }
 
 /**
@@ -38,12 +41,17 @@ export function useMarketDataStream(
 
     const pending: MarketTickRow[] = [];
     let flushTimer: ReturnType<typeof setTimeout> | null = null;
+    let streamReceivedCount: number | undefined;
 
     const flush = () => {
       flushTimer = null;
       if (pending.length === 0) return;
       const rows = pending.splice(0, pending.length);
-      onBatchRef.current({ rows, ticksInBatch: rows.length });
+      onBatchRef.current({
+        rows,
+        ticksInBatch: rows.length,
+        streamReceivedCount,
+      });
     };
 
     const scheduleFlush = () => {
@@ -53,10 +61,21 @@ export function useMarketDataStream(
 
     setStatus("CONNECTING");
 
-    const dispose = openSseStream<MarketDataTickDto>(
+    const dispose = openSharedSseStream<MarketDataTickDto>(
       endpoints.marketData.stream,
       {
         onStatusChange: setStatus,
+        onReceivedCount: (count) => {
+          const seeded = streamReceivedCount == null;
+          streamReceivedCount = count;
+          if (seeded) {
+            onBatchRef.current({
+              rows: [],
+              ticksInBatch: 0,
+              streamReceivedCount: count,
+            });
+          }
+        },
         onMessage: (data) => {
           if (!data || typeof data !== "object") return;
           pending.push(mapTickDto(data));

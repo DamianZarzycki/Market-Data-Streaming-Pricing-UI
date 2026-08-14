@@ -120,6 +120,7 @@ function deriveStatus(
 function statusTone(status: DerivedServiceStatus): StatusTone {
   if (status === "DOWN") return "error";
   if (status === "STALE" || status === "UNKNOWN") return "stale";
+  if (status === "UP") return "up";
   return "live";
 }
 

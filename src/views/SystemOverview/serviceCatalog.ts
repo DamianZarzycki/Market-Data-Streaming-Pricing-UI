@@ -104,7 +104,7 @@ export const SERVICE_CATALOG: ServiceCatalogEntry[] = [
     description: "Accept → queue → DB",
     route: "/trade-action",
     endpointHint: "/status",
-    streaming: true,
+    streaming: false,
     whatThisMeans:
       "Accepts trade actions into a bounded queue and commits to the DB. Watch queue pressure and rejects here.",
     relatedLinks: [
@@ -120,9 +120,9 @@ export const SERVICE_CATALOG: ServiceCatalogEntry[] = [
     description: "Trades · book PnL · audit",
     route: "/blotter",
     endpointHint: "/trades",
-    streaming: false,
+    streaming: true,
     whatThisMeans:
-      "Read model for trades, valuations, and book-level PnL. System Overview PnL KPIs aggregate from here today.",
+      "Read model for trades, valuations, and book-level PnL. Live valuation marks stream into the blotter view.",
     relatedLinks: [
       { label: "Open Blotter", path: "/blotter", primary: true },
       { label: "Open Pricing", path: "/pricing" },

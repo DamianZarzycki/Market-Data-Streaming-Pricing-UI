@@ -19,6 +19,7 @@
 
   /* Semantic data-state */
   --color-live: #22c55e;
+  --color-up: #38bdf8;
   --color-stale: #f59e0b;
   --color-error: #ef4444;
 

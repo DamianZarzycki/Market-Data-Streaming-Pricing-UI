@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { openSseStream, type SseStatus } from "@/services/sseClient";
+import { openSharedSseStream } from "@/services/sharedSseClient";
+import type { SseStatus } from "@/services/sseClient";
 import { endpoints } from "@/services/endpoints";
 import type { PricingValuationDto } from "@/services/pricingTypes";
 
@@ -8,8 +9,10 @@ const FLUSH_MS = 100;
 export interface PricingValuationBatch {
   /** Latest valuation per trade_id in this flush window. */
   updates: Map<string, PricingValuationDto>;
-  /** Raw event count in the flush (for UPDATES KPI). */
+  /** Raw event count in the flush (for UPDATES KPI when not shared). */
   eventsInBatch: number;
+  /** Shared EventSource frame count; same value in every tab. */
+  streamReceivedCount?: number;
 }
 
 /**
@@ -32,6 +35,7 @@ export function usePricingValuationStream(
     const pending = new Map<string, PricingValuationDto>();
     let eventsInBatch = 0;
     let flushTimer: ReturnType<typeof setTimeout> | null = null;
+    let streamReceivedCount: number | undefined;
 
     const flush = () => {
       flushTimer = null;
@@ -39,6 +43,7 @@ export function usePricingValuationStream(
       const batch: PricingValuationBatch = {
         updates: new Map(pending),
         eventsInBatch,
+        streamReceivedCount,
       };
       pending.clear();
       eventsInBatch = 0;
@@ -52,11 +57,22 @@ export function usePricingValuationStream(
 
     setStatus("CONNECTING");
 
-    const dispose = openSseStream<PricingValuationDto>(
+    const dispose = openSharedSseStream<PricingValuationDto>(
       endpoints.pricing.valuationStream,
       {
         eventName: "valuation_update",
         onStatusChange: setStatus,
+        onReceivedCount: (count) => {
+          const seeded = streamReceivedCount == null;
+          streamReceivedCount = count;
+          if (seeded) {
+            onBatchRef.current({
+              updates: new Map(),
+              eventsInBatch: 0,
+              streamReceivedCount: count,
+            });
+          }
+        },
         onMessage: (data) => {
           const tradeId = data?.trade_id;
           if (!tradeId) return;

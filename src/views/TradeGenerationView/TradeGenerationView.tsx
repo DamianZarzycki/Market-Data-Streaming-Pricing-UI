@@ -14,11 +14,16 @@ import {
   generateOnce,
   startTradeGeneration,
   stopTradeGeneration,
+  updateTradeGenerationConfig,
 } from "@/services/tradeGenerationService";
 import type {
   LastApiResponse,
   TradeGenerationStatus,
 } from "@/services/tradeGenerationTypes";
+import {
+  ConfigConfirmModal,
+  type ConfigConfirmPending,
+} from "@/views/TradeGenerationView/ConfigConfirmModal";
 import { TradeGenerationControlPanel } from "@/views/TradeGenerationView/TradeGenerationControlPanel";
 import { TradeGenerationDrawer } from "@/views/TradeGenerationView/TradeGenerationDrawer";
 import { TradeGenerationStatusBar } from "@/views/TradeGenerationView/TradeGenerationStatusBar";
@@ -58,6 +63,9 @@ export function TradeGenerationView() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [actionBusy, setActionBusy] = useState<string | null>(null);
+  const [pendingConfig, setPendingConfig] =
+    useState<ConfigConfirmPending | null>(null);
+  const [configError, setConfigError] = useState<string | null>(null);
   const [drawerCollapsed, setDrawerCollapsed] = useState(() =>
     collapsedForDensity(density),
   );
@@ -128,6 +136,24 @@ export function TradeGenerationView() {
     [recordResponse, refreshStatus],
   );
 
+  const confirmConfigUpdate = useCallback(async () => {
+    if (!pendingConfig) return;
+    setActionBusy("config");
+    setConfigError(null);
+    setError(null);
+    try {
+      const body = await updateTradeGenerationConfig(pendingConfig.patch);
+      recordResponse("PUT", "/config", true, body);
+      setPendingConfig(null);
+      await refreshStatus(false);
+    } catch (err) {
+      recordResponse("PUT", "/config", false, errorPayload(err));
+      setConfigError(errorMessage(err, "Failed to update config"));
+    } finally {
+      setActionBusy(null);
+    }
+  }, [pendingConfig, recordResponse, refreshStatus]);
+
   return (
     <WorkspaceLayout
       ariaLabel="Trade generation service"
@@ -136,6 +162,8 @@ export function TradeGenerationView() {
         <TradeGenerationStatusBar
           isRunning={status?.is_running ?? null}
           totalGenerated={status?.total_generated ?? null}
+          intervalMs={status?.config?.interval_ms ?? null}
+          expectedRatePerSec={status?.expected_rate_per_sec ?? null}
           loading={loading}
           onRefresh={() => void refreshStatus(true)}
         />
@@ -150,6 +178,7 @@ export function TradeGenerationView() {
           ) : null}
           <TradeGenerationControlPanel
             isRunning={status?.is_running ?? null}
+            config={status?.config ?? null}
             lastResponse={lastResponse}
             actionBusy={actionBusy}
             onStart={() =>
@@ -164,7 +193,24 @@ export function TradeGenerationView() {
             onGenerateBatch={() =>
               void runAction("batch", "GET", "/generate-batch", generateBatch)
             }
+            onRequestConfigUpdate={(pending) => {
+              setConfigError(null);
+              setPendingConfig(pending);
+            }}
           />
+          {pendingConfig ? (
+            <ConfigConfirmModal
+              pending={pendingConfig}
+              busy={actionBusy === "config"}
+              error={configError}
+              onClose={() => {
+                if (actionBusy === "config") return;
+                setPendingConfig(null);
+                setConfigError(null);
+              }}
+              onConfirm={() => void confirmConfigUpdate()}
+            />
+          ) : null}
         </>
       }
       drawer={
