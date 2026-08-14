@@ -53,10 +53,11 @@ export function MarketDataDrawer({
                 {isRateQuoted(tick.dataClass) ? "Rate history" : "Price history"}
               </h3>
               <p className="mb-2 text-sm text-text-muted">
-                Last {priceHistory.length} points · up to 100 / 5 min
+                Last {priceHistory.length} points · 5 min · 1s
               </p>
               <PriceSparkline
                 points={priceHistory}
+                instrumentKey={tick.instrumentKey}
                 currency={tick.currency}
                 dataClass={tick.dataClass}
               />

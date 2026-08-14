@@ -14,12 +14,14 @@ import {
   rateToPercent,
 } from "@/views/MarketDataView/formatters";
 
-// #region agent log
-let __chartSetDataCalls = 0;
-// #endregion
+interface ChartPoint {
+  time: UTCTimestamp;
+  value: number;
+}
 
 interface PriceSparklineProps {
   points: PricePoint[];
+  instrumentKey?: string | null;
   currency?: string | null;
   dataClass?: MarketDataClass | null;
   height?: number;
@@ -27,6 +29,7 @@ interface PriceSparklineProps {
 
 export function PriceSparkline({
   points,
+  instrumentKey,
   currency,
   dataClass,
   height = 160,
@@ -34,6 +37,7 @@ export function PriceSparkline({
   const containerRef = useRef<HTMLDivElement | null>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const seriesRef = useRef<ISeriesApi<"Area"> | null>(null);
+  const prevChartDataRef = useRef<ChartPoint[] | null>(null);
 
   const asPercent = isRateQuoted(dataClass);
   const chartData = useMemo(
@@ -52,8 +56,7 @@ export function PriceSparkline({
     };
   }, [points]);
 
-  // useLayoutEffect so the chart is created after the container is in the DOM
-  // (canRenderChart may flip from false → true after the first ticks arrive).
+  // Recreate when the series becomes eligible, scale mode, height, or instrument changes.
   useLayoutEffect(() => {
     if (!canRenderChart) {
       return;
@@ -123,6 +126,7 @@ export function PriceSparkline({
 
     chartRef.current = chart;
     seriesRef.current = series;
+    prevChartDataRef.current = chartData;
 
     const ro = new ResizeObserver((entries) => {
       const width = entries[0]?.contentRect.width;
@@ -137,24 +141,26 @@ export function PriceSparkline({
       chart.remove();
       chartRef.current = null;
       seriesRef.current = null;
+      prevChartDataRef.current = null;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- recreate when chart becomes eligible / height / scale mode changes
-  }, [canRenderChart, height, asPercent]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- full reset on instrument / scale / eligibility
+  }, [canRenderChart, height, asPercent, instrumentKey]);
 
   useLayoutEffect(() => {
     if (!canRenderChart) return;
     const series = seriesRef.current;
-    const chart = chartRef.current;
-    if (!series || !chart) return;
+    if (!series) return;
+    if (prevChartDataRef.current === chartData) return;
+
+    const prev = prevChartDataRef.current;
+    prevChartDataRef.current = chartData;
+
+    if (canUpdateLastBar(prev, chartData)) {
+      series.update(chartData[chartData.length - 1]);
+      return;
+    }
 
     series.setData(chartData);
-    chart.timeScale().fitContent();
-    // #region agent log
-    __chartSetDataCalls += 1;
-    if (__chartSetDataCalls % 20 === 0) {
-      fetch('http://127.0.0.1:7406/ingest/b990d8d1-4614-4157-88e1-24bf677abfbc',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'82b0ff'},body:JSON.stringify({sessionId:'82b0ff',hypothesisId:'H',location:'PriceSparkline.tsx:setData',message:'chart setData redraw',data:{setDataCalls:__chartSetDataCalls,points:chartData.length},timestamp:Date.now()})}).catch(()=>{});
-    }
-    // #endregion
   }, [chartData, canRenderChart]);
 
   if (points.length === 0) {
@@ -202,22 +208,27 @@ export function PriceSparkline({
   );
 }
 
-/**
- * Convert ms timestamps to ascending UTC seconds.
- * Collisions in the same second are bumped (+1s) so we never drop points.
- * Rate-quoted instruments are scaled to percent units for the Y axis.
- */
-function toChartData(points: PricePoint[], asPercent: boolean) {
-  let lastTime = Number.NEGATIVE_INFINITY;
-  return points.map((point) => {
-    let time = Math.floor(point.t / 1000);
-    if (time <= lastTime) {
-      time = lastTime + 1;
-    }
-    lastTime = time;
-    return {
-      time: time as UTCTimestamp,
-      value: asPercent ? rateToPercent(point.price) : point.price,
-    };
-  });
+/** Same last bar (price change) or a newer bar appended — no left-edge trim. */
+function canUpdateLastBar(
+  prev: ChartPoint[] | null,
+  next: ChartPoint[],
+): boolean {
+  if (!prev || prev.length === 0 || next.length === 0) return false;
+  if (next[0].time !== prev[0].time) return false;
+
+  const last = next[next.length - 1];
+  const prevLast = prev[prev.length - 1];
+
+  if (next.length === prev.length && last.time === prevLast.time) {
+    return true;
+  }
+  return next.length === prev.length + 1 && last.time > prevLast.time;
+}
+
+/** Convert 1s-bucketed epoch ms to UTC seconds. Times are already unique. */
+function toChartData(points: PricePoint[], asPercent: boolean): ChartPoint[] {
+  return points.map((point) => ({
+    time: Math.floor(point.t / 1000) as UTCTimestamp,
+    value: asPercent ? rateToPercent(point.price) : point.price,
+  }));
 }

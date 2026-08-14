@@ -42,6 +42,7 @@ export interface MarketDataTickDto {
 /** Snapshot response: instrument key → latest tick. */
 export type MarketDataSnapshotDto = Record<string, MarketDataTickDto>;
 
+/** One aggregated sample for the sparkline. `t` is market time (epoch ms, 1s bucket). */
 export interface PricePoint {
   t: number;
   price: number;

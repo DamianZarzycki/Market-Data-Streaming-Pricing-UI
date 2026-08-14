@@ -9,7 +9,8 @@ import type {
 
 export const STALE_MS = 20_000;
 export const MAX_TICK_ROWS = 150;
-export const MAX_PRICE_POINTS = 100;
+/** 5 min of last-per-second buckets. */
+export const MAX_PRICE_POINTS = 300;
 export const PRICE_HISTORY_WINDOW_MS = 5 * 60 * 1000;
 
 function asNumber(value: unknown): number | null {
@@ -138,22 +139,77 @@ export function liveStatusFor(
   return nowMs - receivedAt < staleMs ? "LIVE" : "STALE";
 }
 
+/** Market timestamp from the tick payload. Invalid / missing → null (never `receivedAt`). */
+export function tickTimeMs(row: MarketTickRow): number | null {
+  if (typeof row.timestamp !== "string" || row.timestamp.trim() === "") {
+    return null;
+  }
+  const parsed = Date.parse(row.timestamp);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function bucketMs(t: number): number {
+  return Math.floor(t / 1000) * 1000;
+}
+
+function appendBucketedPoint(
+  prev: PricePoint[],
+  bucketT: number,
+  price: number,
+): PricePoint[] {
+  const last = prev[prev.length - 1];
+  let next: PricePoint[];
+  if (last && last.t === bucketT) {
+    next = [...prev.slice(0, -1), { t: bucketT, price }];
+  } else if (!last || bucketT > last.t) {
+    next = [...prev, { t: bucketT, price }];
+  } else {
+    return prev;
+  }
+
+  const cutoff = next[next.length - 1].t - PRICE_HISTORY_WINDOW_MS;
+  const trimmed =
+    next[0].t >= cutoff ? next : next.filter((point) => point.t >= cutoff);
+  return trimmed.length > MAX_PRICE_POINTS
+    ? trimmed.slice(-MAX_PRICE_POINTS)
+    : trimmed;
+}
+
+/**
+ * Append ticks into price history with one Map copy per batch.
+ * Points use tick time (1s buckets, last price wins). Window is market time.
+ */
+export function appendPriceHistoryBatch(
+  history: Map<string, PricePoint[]>,
+  rows: MarketTickRow[],
+): Map<string, PricePoint[]> {
+  if (rows.length === 0) return history;
+
+  const next = new Map(history);
+  let changed = false;
+
+  for (const row of rows) {
+    if (row.price === null) continue;
+    const t = tickTimeMs(row);
+    if (t === null) continue;
+
+    const key = row.instrumentKey;
+    const prev = next.get(key) ?? [];
+    const updated = appendBucketedPoint(prev, bucketMs(t), row.price);
+    if (updated !== prev) {
+      next.set(key, updated);
+      changed = true;
+    }
+  }
+
+  return changed ? next : history;
+}
+
 export function appendPriceHistory(
   history: Map<string, PricePoint[]>,
   row: MarketTickRow,
-  nowMs = row.receivedAt,
 ): Map<string, PricePoint[]> {
-  if (row.price === null) return history;
-
-  const next = new Map(history);
-  const cutoff = nowMs - PRICE_HISTORY_WINDOW_MS;
-  const prev = next.get(row.instrumentKey) ?? [];
-  const point: PricePoint = { t: row.receivedAt, price: row.price };
-  const trimmed = [...prev, point]
-    .filter((p) => p.t >= cutoff)
-    .slice(-MAX_PRICE_POINTS);
-  next.set(row.instrumentKey, trimmed);
-  return next;
+  return appendPriceHistoryBatch(history, [row]);
 }
 
 /**

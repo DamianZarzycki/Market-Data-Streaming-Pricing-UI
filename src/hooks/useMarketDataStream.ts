@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import {
-  appendPriceHistory,
+  appendPriceHistoryBatch,
   mapTickDto,
   mergeTickRows,
 } from "@/services/marketDataMappers";
@@ -99,12 +99,8 @@ export function applyMarketDataBatch(
   history: Map<string, PricePoint[]>,
   batch: MarketDataBatch,
 ): { rows: MarketTickRow[]; history: Map<string, PricePoint[]> } {
-  let nextHistory = history;
-  for (const row of batch.rows) {
-    nextHistory = appendPriceHistory(nextHistory, row);
-  }
   return {
     rows: mergeTickRows(currentRows, batch.rows),
-    history: nextHistory,
+    history: appendPriceHistoryBatch(history, batch.rows),
   };
 }
