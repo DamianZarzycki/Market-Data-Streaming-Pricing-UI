@@ -1,3 +1,5 @@
+import { useState } from "react";
+import { Button } from "@/components/ui/Button";
 import { StatusPill } from "@/components/ui/StatusPill";
 import { SideDrawer } from "@/components/layout/SideDrawer";
 import type { LiveStatus } from "@/domain/types";
@@ -8,6 +10,7 @@ import {
   formatTimestamp,
   isRateQuoted,
 } from "@/views/MarketDataView/formatters";
+import { openMarketChartWindow } from "@/views/MarketDataView/openMarketChartWindow";
 import { PriceSparkline } from "@/views/MarketDataView/PriceSparkline";
 
 interface MarketDataDrawerProps {
@@ -25,6 +28,29 @@ export function MarketDataDrawer({
   collapsed,
   onToggleCollapse,
 }: MarketDataDrawerProps) {
+  const [popoutError, setPopoutError] = useState<string | null>(null);
+
+  const handlePopOut = () => {
+    if (!tick) return;
+    const result = openMarketChartWindow(
+      {
+        instrumentKey: tick.instrumentKey,
+        currency: tick.currency,
+        dataClass: tick.dataClass,
+      },
+      priceHistory,
+    );
+    if (result.ok) {
+      setPopoutError(null);
+      return;
+    }
+    setPopoutError(
+      result.reason === "limit"
+        ? "Maximum of 50 chart windows is open."
+        : "Popup blocked. Allow popups for this site and try again.",
+    );
+  };
+
   return (
     <SideDrawer
       collapsed={collapsed}
@@ -52,9 +78,17 @@ export function MarketDataDrawer({
               <h3 className="mb-2 text-sm font-semibold uppercase tracking-[0.04em] text-text-muted">
                 {isRateQuoted(tick.dataClass) ? "Rate history" : "Price history"}
               </h3>
-              <p className="mb-2 text-sm text-text-muted">
-                Last {priceHistory.length} points · 5 min · 1s
-              </p>
+              <div className="mb-2 flex items-center justify-between gap-2">
+                <p className="m-0 text-sm text-text-muted">
+                  Last {priceHistory.length} points · 5 min · 1s
+                </p>
+                <Button variant="secondary" onClick={handlePopOut}>
+                  Pop out
+                </Button>
+              </div>
+              {popoutError ? (
+                <p className="mb-2 text-sm text-error">{popoutError}</p>
+              ) : null}
               <PriceSparkline
                 points={priceHistory}
                 instrumentKey={tick.instrumentKey}

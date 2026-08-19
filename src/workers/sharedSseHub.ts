@@ -1,4 +1,8 @@
-import type { SharedSseOutbound, SseStatus } from "./sharedSseProtocol";
+import type {
+  SharedSseOutbound,
+  SseStatus,
+  WorkerRole,
+} from "./sharedSseProtocol";
 
 const SSE_CONNECTING = 0;
 const SSE_OPEN = 1;
@@ -19,6 +23,14 @@ export type EventSourceLike = {
 };
 
 export type CreateEventSource = (url: string) => EventSourceLike;
+
+export type SseHubOptions = {
+  now?: () => number;
+  /** App ports with no heartbeat for this long are treated as closed. */
+  staleMs?: number;
+};
+
+const DEFAULT_STALE_MS = 4_000;
 
 type NamedListener = (event: Event) => void;
 
@@ -49,8 +61,14 @@ function statusFromReadyState(readyState: number): SseStatus {
  */
 export function createSseHub(
   createEventSource: CreateEventSource = (url) => new EventSource(url),
+  options: SseHubOptions = {},
 ) {
+  const now = options.now ?? (() => Date.now());
+  const staleMs = options.staleMs ?? DEFAULT_STALE_MS;
   const streams = new Map<string, StreamState>();
+  const appPorts = new Set<HubPort>();
+  const chartPorts = new Set<HubPort>();
+  const lastSeen = new Map<HubPort, number>();
 
   function post(port: HubPort, msg: SharedSseOutbound) {
     port.postMessage(msg);
@@ -162,6 +180,38 @@ export function createSseHub(
     return state;
   }
 
+  function touch(port: HubPort) {
+    lastSeen.set(port, now());
+  }
+
+  function register(port: HubPort, role: WorkerRole) {
+    if (role === "app") {
+      chartPorts.delete(port);
+      appPorts.add(port);
+      touch(port);
+      return;
+    }
+    appPorts.delete(port);
+    chartPorts.add(port);
+    touch(port);
+  }
+
+  function heartbeat(port: HubPort) {
+    if (appPorts.has(port) || chartPorts.has(port)) {
+      touch(port);
+    }
+  }
+
+  function broadcastShutdown() {
+    for (const port of chartPorts) {
+      try {
+        post(port, { type: "shutdown" });
+      } catch {
+        // Port may already be gone.
+      }
+    }
+  }
+
   function subscribe(port: HubPort, url: string, eventName?: string) {
     let state = streams.get(url);
     if (!state) {
@@ -192,10 +242,35 @@ export function createSseHub(
   }
 
   function detachPort(port: HubPort) {
+    const wasLastApp = appPorts.has(port) && appPorts.size === 1;
+    appPorts.delete(port);
+    chartPorts.delete(port);
+    lastSeen.delete(port);
     for (const url of [...streams.keys()]) {
       unsubscribe(port, url);
     }
+    if (wasLastApp) {
+      broadcastShutdown();
+    }
   }
 
-  return { subscribe, unsubscribe, detachPort };
+  /** Drop app ports that stopped heartbeating (tab close often skips port.onclose). */
+  function sweepStaleAppPorts() {
+    const t = now();
+    for (const port of [...appPorts]) {
+      const seen = lastSeen.get(port) ?? 0;
+      if (t - seen > staleMs) {
+        detachPort(port);
+      }
+    }
+  }
+
+  return {
+    subscribe,
+    unsubscribe,
+    detachPort,
+    register,
+    heartbeat,
+    sweepStaleAppPorts,
+  };
 }

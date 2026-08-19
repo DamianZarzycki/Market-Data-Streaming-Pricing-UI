@@ -9,8 +9,13 @@ import { TradeActionView } from "@/views/TradeActionView/TradeActionView";
 import { BlotterView } from "@/views/BlotterView/BlotterView";
 import { TradeDetailsView } from "@/views/TradeDetailsView/TradeDetailsView";
 import { MonitoringView } from "@/views/MonitoringView/MonitoringView";
+import { MarketChartPopout } from "@/views/MarketDataView/MarketChartPopout";
 
 export const routes: RouteObject[] = [
+  {
+    path: "popout/market-chart",
+    element: <MarketChartPopout />,
+  },
   {
     path: "/",
     element: <AppShell />,

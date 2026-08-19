@@ -16,21 +16,22 @@ function connectViaWorker<T>(url: string, handlers: SseHandlers<T>): () => void 
 
   handlers.onStatusChange?.("CONNECTING");
 
-  port.onmessage = (event: MessageEvent<SharedSseOutbound>) => {
-    const payload = event.data;
-    if (!payload || payload.url !== url) return;
-    if (!eventNamesMatch(payload.eventName, eventName)) return;
-    if (typeof payload.receivedCount === "number") {
-      handlers.onReceivedCount?.(payload.receivedCount);
-    }
-    if (payload.type === "status") {
-      handlers.onStatusChange?.(payload.status);
-      return;
-    }
-    if (payload.type === "message") {
-      handlers.onMessage(payload.data as T);
-    }
-  };
+    port.onmessage = (event: MessageEvent<SharedSseOutbound>) => {
+      const payload = event.data;
+      if (!payload || payload.type === "shutdown") return;
+      if (payload.url !== url) return;
+      if (!eventNamesMatch(payload.eventName, eventName)) return;
+      if (typeof payload.receivedCount === "number") {
+        handlers.onReceivedCount?.(payload.receivedCount);
+      }
+      if (payload.type === "status") {
+        handlers.onStatusChange?.(payload.status);
+        return;
+      }
+      if (payload.type === "message") {
+        handlers.onMessage(payload.data as T);
+      }
+    };
 
   worker.onerror = () => {
     if (closed) return;

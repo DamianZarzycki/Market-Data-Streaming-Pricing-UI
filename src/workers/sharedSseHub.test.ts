@@ -76,10 +76,10 @@ function fakePort(): HubPort & { messages: SharedSseOutbound[] } {
   };
 }
 
-function createTestHub() {
+function createTestHub(options?: { now?: () => number; staleMs?: number }) {
   // Isolate instance counts between tests — the static list is the assertion.
   FakeEventSource.instances = [];
-  return createSseHub((url) => new FakeEventSource(url));
+  return createSseHub((url) => new FakeEventSource(url), options);
 }
 
 const MARKET = "/api/market-data/stream";
@@ -198,5 +198,81 @@ describe("createSseHub connection sharing", () => {
       url: MARKET,
       receivedCount: 2,
     });
+  });
+});
+
+describe("createSseHub app vs chart roles", () => {
+  it("does not shut down charts while another app tab is still connected", () => {
+    const hub = createTestHub();
+    const appA = fakePort();
+    const appB = fakePort();
+    const chart = fakePort();
+    hub.register(appA, "app");
+    hub.register(appB, "app");
+    hub.register(chart, "chart");
+
+    hub.detachPort(appA);
+
+    expect(chart.messages.some((msg) => msg.type === "shutdown")).toBe(false);
+  });
+
+  it("shuts down chart ports when the last app tab disconnects", () => {
+    const hub = createTestHub();
+    const appA = fakePort();
+    const appB = fakePort();
+    const chart = fakePort();
+    hub.register(appA, "app");
+    hub.register(appB, "app");
+    hub.register(chart, "chart");
+
+    hub.detachPort(appA);
+    hub.detachPort(appB);
+
+    expect(chart.messages.some((msg) => msg.type === "shutdown")).toBe(true);
+  });
+
+  it("shuts down charts when the last app port unregisters", () => {
+    const hub = createTestHub();
+    const app = fakePort();
+    const chart = fakePort();
+    hub.register(app, "app");
+    hub.register(chart, "chart");
+
+    hub.detachPort(app);
+
+    expect(chart.messages.some((msg) => msg.type === "shutdown")).toBe(true);
+  });
+
+  it("treats a silent app port as gone after the stale window", () => {
+    let t = 0;
+    const hub = createTestHub({ now: () => t, staleMs: 1_000 });
+    const app = fakePort();
+    const chart = fakePort();
+    hub.register(app, "app");
+    hub.register(chart, "chart");
+
+    t = 500;
+    hub.sweepStaleAppPorts();
+    expect(chart.messages.some((msg) => msg.type === "shutdown")).toBe(false);
+
+    t = 1_500;
+    hub.sweepStaleAppPorts();
+    expect(chart.messages.some((msg) => msg.type === "shutdown")).toBe(true);
+  });
+
+  it("keeps charts open when a stale app tab still heartbeats", () => {
+    let t = 0;
+    const hub = createTestHub({ now: () => t, staleMs: 1_000 });
+    const app = fakePort();
+    const chart = fakePort();
+    hub.register(app, "app");
+    hub.register(chart, "chart");
+
+    t = 900;
+    hub.heartbeat(app);
+    t = 1_500;
+    hub.sweepStaleAppPorts();
+
+    expect(chart.messages.some((msg) => msg.type === "shutdown")).toBe(false);
   });
 });

@@ -16,6 +16,9 @@ scope.onconnect = (event: MessageEvent) => {
     if (!data || typeof data !== "object") return;
     if (data.type === "subscribe") hub.subscribe(port, data.url, data.eventName);
     if (data.type === "unsubscribe") hub.unsubscribe(port, data.url);
+    if (data.type === "register") hub.register(port, data.role);
+    if (data.type === "unregister") hub.detachPort(port);
+    if (data.type === "heartbeat") hub.heartbeat(port);
   };
 
   (
@@ -24,3 +27,5 @@ scope.onconnect = (event: MessageEvent) => {
 
   port.start();
 };
+
+setInterval(() => hub.sweepStaleAppPorts(), 1000);
