@@ -1,4 +1,5 @@
 import type { LiveStatus } from "@/domain/types";
+import type { ProviderQuoteEvent } from "@/services/providerQuotesTypes";
 import type {
   MarketDataClass,
   MarketDataSnapshotDto,
@@ -8,6 +9,8 @@ import type {
 } from "@/services/marketDataTypes";
 
 export const STALE_MS = 20_000;
+/** Provider quotes are polled every 30s, so a row stays live across one gap. */
+export const PROVIDER_QUOTE_STALE_MS = 45_000;
 export const MAX_TICK_ROWS = 150;
 /** 5 min of last-per-second buckets. */
 export const MAX_PRICE_POINTS = 300;
@@ -95,6 +98,13 @@ export function resolveCurrency(
   return null;
 }
 
+function resolveDescription(dto: MarketDataTickDto): string | null {
+  if (typeof dto.description === "string" && dto.description.trim()) {
+    return dto.description.trim();
+  }
+  return null;
+}
+
 export function mapTickDto(
   dto: MarketDataTickDto,
   options?: { receivedAt?: number; snapshotKey?: string },
@@ -115,10 +125,41 @@ export function mapTickDto(
     dataClass,
     price: resolvePrice(dto),
     currency: resolveCurrency(dto, dataClass, instrumentKey),
+    description: resolveDescription(dto),
     timestamp,
     receivedAt,
     eventId: typeof dto.event_id === "number" ? dto.event_id : undefined,
     raw: dto,
+  };
+}
+
+export function mapProviderQuote(
+  quote: ProviderQuoteEvent,
+  receivedAt = Date.now(),
+): MarketTickRow {
+  const symbol = quote.symbol || "UNKNOWN";
+  const dataClass = quote.asset_class || "UNKNOWN";
+  const provider = quote.provider || "UNKNOWN";
+  const instrumentKey = `${provider}:${dataClass}:${symbol}`;
+  const row = mapTickDto(
+    {
+      symbol,
+      asset_type: dataClass,
+      last: quote.last ?? undefined,
+      bid: quote.bid ?? undefined,
+      ask: quote.ask ?? undefined,
+      currency: quote.currency ?? undefined,
+      timestamp: quote.provider_timestamp || quote.received_at,
+      description: provider,
+    },
+    { receivedAt, snapshotKey: instrumentKey },
+  );
+  return {
+    ...row,
+    id: instrumentKey,
+    instrumentKey,
+    symbol,
+    description: provider,
   };
 }
 

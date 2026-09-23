@@ -1,8 +1,10 @@
 export type AssetClass =
   | "EQUITY"
   | "FX"
+  | "BOND"
   | "OPTION"
   | "IRS"
+  | "FUTURES"
   | string;
 
 export type LiveStatus = "LIVE" | "STALE" | "ERROR";

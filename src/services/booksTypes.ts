@@ -37,4 +37,5 @@ export const BOOK_ASSET_CLASSES: AssetClass[] = [
   "OPTION",
   "IRS",
   "BOND",
+  "FUTURES",
 ];

@@ -1,5 +1,6 @@
 import { apiClient } from "@/services/apiClient";
 import { endpoints } from "@/services/endpoints";
+import type { OpenTradeActionPayload } from "@/services/tradeActionTypes";
 import type {
   TradeGenerationConfig,
   TradeGenerationConfigPatch,
@@ -43,4 +44,10 @@ export async function generateOnce(): Promise<unknown> {
 
 export async function generateBatch(): Promise<unknown> {
   return apiClient.get(endpoints.tradeGeneration.generateBatch);
+}
+
+export async function generateTrade(
+  payload: OpenTradeActionPayload,
+): Promise<unknown> {
+  return apiClient.post(endpoints.tradeGeneration.generateTrade, payload);
 }

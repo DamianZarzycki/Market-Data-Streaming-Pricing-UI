@@ -9,11 +9,17 @@ export interface PricingValuationDto {
   side?: TradeSide;
   fair_value?: number;
   market_value?: number | null;
+  current_price?: number;
+  entry_price?: number;
   unrealized_pnl?: number;
   realized_pnl?: number;
   total_pnl?: number;
   currency?: string;
   valuation_time?: string;
+  market_data_provider?: string | null;
+  market_data_timestamp?: string | null;
+  is_stale?: boolean;
+  market_data_age_seconds?: number | null;
   pricing_details?: Record<string, unknown>;
 }
 

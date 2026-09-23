@@ -34,6 +34,10 @@ export default defineConfig({
         "trade-generation",
       ),
       "/api/trade-action": svc("http://trade-action-service:8080", "trade-action"),
+      "/api/provider-quotes": svc(
+        "http://market-data-service-integration:8005",
+        "provider-quotes",
+      ),
     },
   },
 });

@@ -8,6 +8,7 @@ export const services = {
   blotter: `${API_BASE}/blotter`,
   tradeGeneration: `${API_BASE}/trade-generation`,
   tradeAction: `${API_BASE}/trade-action`,
+  providerQuotes: `${API_BASE}/provider-quotes`,
 } as const;
 
 export const endpoints = {
@@ -59,11 +60,29 @@ export const endpoints = {
     stop: `${services.tradeGeneration}/stop`,
     generateOnce: `${services.tradeGeneration}/generate-once`,
     generateBatch: `${services.tradeGeneration}/generate-batch`,
+    generateTrade: `${services.tradeGeneration}/generate-trade`,
   },
   tradeAction: {
     health: `${services.tradeAction}/health`,
     status: `${services.tradeAction}/status`,
     tradeActions: `${services.tradeAction}/trade-actions`,
     tradeActionsBatch: `${services.tradeAction}/trade-actions/batch`,
+  },
+  providerQuotes: {
+    /** market-data-service-integration: SSE, "quote" events for equity symbols only. */
+    stream: `${services.providerQuotes}/market-data/stream`,
+    /** Latest persisted quote per provider and symbol. */
+    snapshot: `${services.providerQuotes}/market-data/snapshot`,
+    /** Symbols per asset class from the integration service env. */
+    symbols: `${services.providerQuotes}/market-data/symbols`,
+    /** market-data-service-integration: GET /market-data/quotes?symbol=&asset_class= — last persisted value per provider. */
+    quotes: (symbol: string, assetClass: string) =>
+      `${services.providerQuotes}/market-data/quotes?symbol=${encodeURIComponent(symbol)}&asset_class=${encodeURIComponent(assetClass)}`,
+    /** FX spot from the persisted NBP table. Not an SSE stream. */
+    fxQuotes: (symbol: string) =>
+      `${services.providerQuotes}/market-data/fx-quotes?symbol=${encodeURIComponent(symbol)}`,
+    /** Bond or IRS yield from the persisted FRED/ECB curve. Not an SSE stream. */
+    curveQuotes: (symbol: string, assetClass: string) =>
+      `${services.providerQuotes}/market-data/curve-quotes?symbol=${encodeURIComponent(symbol)}&asset_class=${encodeURIComponent(assetClass)}`,
   },
 } as const;

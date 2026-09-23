@@ -34,6 +34,7 @@ export interface MarketDataTickDto {
   maturity_years?: number;
   payments_per_year?: number;
   direction?: string;
+  description?: string;
   tenors?: string[];
   rates?: number[];
   [key: string]: unknown;
@@ -56,6 +57,7 @@ export interface MarketTickRow {
   dataClass: MarketDataClass;
   price: number | null;
   currency: string | null;
+  description: string | null;
   timestamp: string;
   receivedAt: number;
   eventId?: number;

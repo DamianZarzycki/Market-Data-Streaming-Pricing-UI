@@ -7,23 +7,30 @@ import {
   useCompactLayout,
 } from "@/layout/useCompactLayout";
 import { ApiError } from "@/services/apiClient";
+import { listBooks } from "@/services/booksService";
+import type { OpenTradeActionPayload } from "@/services/tradeActionTypes";
 import {
+  fetchTradeGenerationConfig,
   fetchTradeGenerationHealth,
   fetchTradeGenerationStatus,
   generateBatch,
   generateOnce,
+  generateTrade,
   startTradeGeneration,
   stopTradeGeneration,
   updateTradeGenerationConfig,
 } from "@/services/tradeGenerationService";
 import type {
   LastApiResponse,
+  TradeGenerationConfig,
   TradeGenerationStatus,
 } from "@/services/tradeGenerationTypes";
+import type { Book } from "@/domain/types";
 import {
   ConfigConfirmModal,
   type ConfigConfirmPending,
 } from "@/views/TradeGenerationView/ConfigConfirmModal";
+import { GenerateTradeModal } from "@/views/TradeGenerationView/GenerateTradeModal";
 import { TradeGenerationControlPanel } from "@/views/TradeGenerationView/TradeGenerationControlPanel";
 import { TradeGenerationDrawer } from "@/views/TradeGenerationView/TradeGenerationDrawer";
 import { TradeGenerationStatusBar } from "@/views/TradeGenerationView/TradeGenerationStatusBar";
@@ -56,6 +63,7 @@ function errorMessage(err: unknown, fallback: string): string {
 export function TradeGenerationView() {
   const density = useDensity();
   const [status, setStatus] = useState<TradeGenerationStatus | null>(null);
+  const [config, setConfig] = useState<TradeGenerationConfig | null>(null);
   const [serviceUp, setServiceUp] = useState<boolean | null>(null);
   const [lastResponse, setLastResponse] = useState<LastApiResponse | null>(
     null,
@@ -66,6 +74,11 @@ export function TradeGenerationView() {
   const [pendingConfig, setPendingConfig] =
     useState<ConfigConfirmPending | null>(null);
   const [configError, setConfigError] = useState<string | null>(null);
+  const [generateTradeOpen, setGenerateTradeOpen] = useState(false);
+  const [books, setBooks] = useState<Book[]>([]);
+  const [generateTradeError, setGenerateTradeError] = useState<string | null>(
+    null,
+  );
   const [drawerCollapsed, setDrawerCollapsed] = useState(() =>
     collapsedForDensity(density),
   );
@@ -102,9 +115,29 @@ export function TradeGenerationView() {
     }
   }, []);
 
+  const refreshAll = useCallback(async (showLoading = false) => {
+    if (showLoading) setLoading(true);
+    try {
+      const [nextStatus, health, nextConfig] = await Promise.all([
+        fetchTradeGenerationStatus(),
+        fetchTradeGenerationHealth().catch(() => null),
+        fetchTradeGenerationConfig(),
+      ]);
+      setStatus(nextStatus);
+      setServiceUp(health?.status?.toUpperCase() === "UP");
+      setConfig(nextConfig);
+      setError(null);
+    } catch (err) {
+      setServiceUp(false);
+      setError(errorMessage(err, "Failed to load generator status"));
+    } finally {
+      if (showLoading) setLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
-    void refreshStatus(true);
-  }, [refreshStatus]);
+    void refreshAll(true);
+  }, [refreshAll]);
 
   useEffect(() => {
     const id = window.setInterval(() => {
@@ -144,6 +177,7 @@ export function TradeGenerationView() {
     try {
       const body = await updateTradeGenerationConfig(pendingConfig.patch);
       recordResponse("PUT", "/config", true, body);
+      setConfig(body.config);
       setPendingConfig(null);
       await refreshStatus(false);
     } catch (err) {
@@ -154,6 +188,37 @@ export function TradeGenerationView() {
     }
   }, [pendingConfig, recordResponse, refreshStatus]);
 
+  const openGenerateTrade = useCallback(async () => {
+    setGenerateTradeError(null);
+    setGenerateTradeOpen(true);
+    try {
+      setBooks(await listBooks());
+    } catch (err) {
+      setGenerateTradeError(errorMessage(err, "Failed to load books"));
+    }
+  }, []);
+
+  const submitGenerateTrade = useCallback(
+    async (payload: OpenTradeActionPayload) => {
+      setActionBusy("trade-ticket");
+      setGenerateTradeError(null);
+      try {
+        const body = await generateTrade(payload);
+        recordResponse("POST", "/generate-trade", true, body);
+        setGenerateTradeOpen(false);
+        await refreshStatus(false);
+      } catch (err) {
+        recordResponse("POST", "/generate-trade", false, errorPayload(err));
+        setGenerateTradeError(
+          errorMessage(err, "Failed to generate trade"),
+        );
+      } finally {
+        setActionBusy(null);
+      }
+    },
+    [recordResponse, refreshStatus],
+  );
+
   return (
     <WorkspaceLayout
       ariaLabel="Trade generation service"
@@ -162,10 +227,10 @@ export function TradeGenerationView() {
         <TradeGenerationStatusBar
           isRunning={status?.is_running ?? null}
           totalGenerated={status?.total_generated ?? null}
-          intervalMs={status?.config?.interval_ms ?? null}
+          intervalMs={config?.interval_ms ?? null}
           expectedRatePerSec={status?.expected_rate_per_sec ?? null}
           loading={loading}
-          onRefresh={() => void refreshStatus(true)}
+          onRefresh={() => void refreshAll(true)}
         />
       }
       main={
@@ -173,12 +238,12 @@ export function TradeGenerationView() {
           {error ? (
             <InlineAlert
               message={error}
-              onRetry={() => void refreshStatus(true)}
+              onRetry={() => void refreshAll(true)}
             />
           ) : null}
           <TradeGenerationControlPanel
             isRunning={status?.is_running ?? null}
-            config={status?.config ?? null}
+            config={config}
             lastResponse={lastResponse}
             actionBusy={actionBusy}
             onStart={() =>
@@ -193,6 +258,7 @@ export function TradeGenerationView() {
             onGenerateBatch={() =>
               void runAction("batch", "GET", "/generate-batch", generateBatch)
             }
+            onGenerateTrade={() => void openGenerateTrade()}
             onRequestConfigUpdate={(pending) => {
               setConfigError(null);
               setPendingConfig(pending);
@@ -211,11 +277,25 @@ export function TradeGenerationView() {
               onConfirm={() => void confirmConfigUpdate()}
             />
           ) : null}
+          {generateTradeOpen ? (
+            <GenerateTradeModal
+              books={books}
+              busy={actionBusy === "trade-ticket"}
+              error={generateTradeError}
+              onClose={() => {
+                if (actionBusy === "trade-ticket") return;
+                setGenerateTradeOpen(false);
+                setGenerateTradeError(null);
+              }}
+              onSubmit={(payload) => void submitGenerateTrade(payload)}
+            />
+          ) : null}
         </>
       }
       drawer={
         <TradeGenerationDrawer
           status={status}
+          config={config}
           serviceUp={serviceUp}
           collapsed={drawerCollapsed}
           onToggleCollapse={() => setDrawerCollapsed((value) => !value)}

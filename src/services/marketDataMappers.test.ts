@@ -19,6 +19,7 @@ function row(
     symbol: overrides.instrumentKey,
     dataClass: "EQUITY",
     currency: "USD",
+    description: null,
     receivedAt: 9_999_999_999_999,
     raw: {},
     ...overrides,
