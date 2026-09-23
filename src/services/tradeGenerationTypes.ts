@@ -7,6 +7,7 @@ export interface TradeGenerationConfig {
   qty_max: number;
   price_min: number;
   price_max: number;
+  use_provider_data: boolean;
 }
 
 export type TradeGenerationConfigPatch = Partial<TradeGenerationConfig>;
@@ -14,7 +15,6 @@ export type TradeGenerationConfigPatch = Partial<TradeGenerationConfig>;
 export interface TradeGenerationStatus {
   is_running: boolean;
   total_generated: number;
-  config?: TradeGenerationConfig;
   expected_rate_per_sec?: number;
 }
 

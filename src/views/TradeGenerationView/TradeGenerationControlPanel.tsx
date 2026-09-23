@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { StatusPill } from "@/components/ui/StatusPill";
 import { PanelHeader } from "@/components/layout/PanelHeader";
@@ -8,7 +8,7 @@ import type {
 } from "@/services/tradeGenerationTypes";
 import type { ConfigConfirmPending } from "@/views/TradeGenerationView/ConfigConfirmModal";
 
-type ConfigKey = keyof TradeGenerationConfig;
+type ConfigKey = Exclude<keyof TradeGenerationConfig, "use_provider_data">;
 
 interface ConfigFieldDef {
   key: ConfigKey;
@@ -93,6 +93,7 @@ interface TradeGenerationControlPanelProps {
   onStop: () => void;
   onGenerateOnce: () => void;
   onGenerateBatch: () => void;
+  onGenerateTrade: () => void;
   onRequestConfigUpdate: (pending: ConfigConfirmPending) => void;
 }
 
@@ -105,22 +106,20 @@ export function TradeGenerationControlPanel({
   onStop,
   onGenerateOnce,
   onGenerateBatch,
+  onGenerateTrade,
   onRequestConfigUpdate,
 }: TradeGenerationControlPanelProps) {
   const running = Boolean(isRunning);
   const busy = actionBusy != null;
   const [drafts, setDrafts] = useState<Record<ConfigKey, string> | null>(null);
+  const syncedConfigRef = useRef<TradeGenerationConfig | null>(null);
 
   useEffect(() => {
     if (!config) return;
-    setDrafts((prev) => {
-      // Keep local edits while a confirm is in flight; otherwise sync from server.
-      if (prev != null && actionBusy === "config") return prev;
-      return Object.fromEntries(
-        CONFIG_FIELDS.map((field) => [field.key, field.format(config[field.key])]),
-      ) as Record<ConfigKey, string>;
-    });
-  }, [config, actionBusy]);
+    const synced = syncedConfigRef.current;
+    setDrafts((prev) => mergeDraftsFromConfig(prev, config, synced));
+    syncedConfigRef.current = config;
+  }, [config]);
 
   const batchLabel =
     config != null ? `Generate batch (${config.batch_size})` : "Generate batch";
@@ -196,6 +195,13 @@ export function TradeGenerationControlPanel({
               >
                 {actionBusy === "batch" ? "Generating…" : batchLabel}
               </Button>
+              <Button
+                variant="primary"
+                onClick={onGenerateTrade}
+                disabled={busy}
+              >
+                Generate Trade
+              </Button>
             </div>
             <p className="mt-2.5 text-sm text-text-muted">
               Once = single OPEN/CLOSE intention → trade-action-service. Batch
@@ -207,14 +213,29 @@ export function TradeGenerationControlPanel({
         <section aria-label="Runtime config" className="flex flex-col gap-2">
           <h2 className="text-base font-semibold">3. Runtime config</h2>
           <p className="text-sm text-text-muted">
-            Input + Update per field · confirmation modal before apply · PUT
-            /config
+            Input + Update per field · loaded via GET /config · confirmation
+            modal before apply · PUT /config
           </p>
           <div className="rounded border border-border bg-surface-alt p-3">
             {config == null || drafts == null ? (
               <p className="text-sm text-text-muted">Loading config…</p>
             ) : (
               <div className="flex flex-col gap-2.5">
+                <ProviderDataSwitch
+                  enabled={config.use_provider_data}
+                  disabled={busy}
+                  onToggle={() =>
+                    onRequestConfigUpdate({
+                      key: "use_provider_data",
+                      label: "Market data source",
+                      current: providerSourceLabel(config.use_provider_data),
+                      next: providerSourceLabel(!config.use_provider_data),
+                      patch: {
+                        use_provider_data: !config.use_provider_data,
+                      },
+                    })
+                  }
+                />
                 {FIELD_PAIRS.map(([left, right]) => (
                   <div
                     key={left.key}
@@ -296,6 +317,50 @@ export function TradeGenerationControlPanel({
   );
 }
 
+function providerSourceLabel(enabled: boolean): string {
+  return enabled
+    ? "market-data-service-integration"
+    : "market-data-service";
+}
+
+function ProviderDataSwitch({
+  enabled,
+  disabled,
+  onToggle,
+}: {
+  enabled: boolean;
+  disabled: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-3 rounded border border-border bg-bg px-3 py-2.5">
+      <div className="min-w-0">
+        <p className="text-sm font-medium">Market data source</p>
+        <p className="truncate font-mono text-sm text-text-muted">
+          {providerSourceLabel(enabled)}
+        </p>
+      </div>
+      <button
+        type="button"
+        role="switch"
+        aria-checked={enabled}
+        aria-label="Use provider market data"
+        disabled={disabled}
+        onClick={onToggle}
+        className={`relative h-6 w-11 shrink-0 cursor-pointer rounded-full border border-border transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
+          enabled ? "bg-accent" : "bg-surface"
+        }`}
+      >
+        <span
+          className={`absolute top-0.5 left-0.5 size-4 rounded-full bg-text transition-transform ${
+            enabled ? "translate-x-5" : ""
+          }`}
+        />
+      </button>
+    </div>
+  );
+}
+
 function ConfigRow({
   field,
   value,
@@ -341,6 +406,31 @@ function ConfigRow({
       </Button>
     </div>
   );
+}
+
+function draftsFromConfig(
+  config: TradeGenerationConfig,
+): Record<ConfigKey, string> {
+  return Object.fromEntries(
+    CONFIG_FIELDS.map((field) => [field.key, field.format(config[field.key])]),
+  ) as Record<ConfigKey, string>;
+}
+
+function mergeDraftsFromConfig(
+  prev: Record<ConfigKey, string> | null,
+  config: TradeGenerationConfig,
+  synced: TradeGenerationConfig | null,
+): Record<ConfigKey, string> {
+  if (prev == null || synced == null) return draftsFromConfig(config);
+
+  const next = { ...prev };
+  for (const field of CONFIG_FIELDS) {
+    const serverWas = field.format(synced[field.key]);
+    if (prev[field.key] === serverWas) {
+      next[field.key] = field.format(config[field.key]);
+    }
+  }
+  return next;
 }
 
 function requestUpdate(

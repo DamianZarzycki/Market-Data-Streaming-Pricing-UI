@@ -126,7 +126,11 @@ function Row({
   return (
     <div className="flex items-start justify-between gap-3">
       <dt className="text-text-muted">{label}</dt>
-      <dd className={`m-0 ${mono ? "font-mono tabular-nums" : ""}`}>{value}</dd>
+      <dd
+        className={`m-0 min-w-0 break-all text-right ${mono ? "font-mono tabular-nums" : ""}`}
+      >
+        {value}
+      </dd>
     </div>
   );
 }

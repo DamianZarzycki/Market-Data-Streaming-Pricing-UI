@@ -1,10 +1,11 @@
 import { StatusPill } from "@/components/ui/StatusPill";
 import { SideDrawer } from "@/components/layout/SideDrawer";
-import type { TradeGenerationStatus } from "@/services/tradeGenerationTypes";
+import type { TradeGenerationConfig, TradeGenerationStatus } from "@/services/tradeGenerationTypes";
 import { cn } from "@/lib/cn";
 
 interface TradeGenerationDrawerProps {
   status: TradeGenerationStatus | null;
+  config: TradeGenerationConfig | null;
   serviceUp: boolean | null;
   collapsed: boolean;
   onToggleCollapse: () => void;
@@ -16,8 +17,8 @@ const DEPENDENCIES = [
     detail: "GET /books · pick random book",
   },
   {
-    name: "market-data-service",
-    detail: "GET /symbols · by asset class",
+    name: "market data",
+    detail: "simulator or integration, set by the source switch",
   },
   {
     name: "trade-action-service",
@@ -42,6 +43,7 @@ const IMPLEMENTED_API = [
 
 export function TradeGenerationDrawer({
   status,
+  config,
   serviceUp,
   collapsed,
   onToggleCollapse,
@@ -50,7 +52,6 @@ export function TradeGenerationDrawer({
     serviceUp == null ? "stale" : serviceUp ? "live" : "error";
   const label =
     serviceUp == null ? "…" : serviceUp ? "UP" : "DOWN";
-  const config = status?.config ?? null;
 
   return (
     <SideDrawer
@@ -107,7 +108,7 @@ export function TradeGenerationDrawer({
         </section>
 
         <section aria-label="Active config">
-          <h3 className="mb-2 text-sm font-semibold">Active config</h3>
+          <h3 className="mb-2 text-sm font-semibold">GET /config snapshot</h3>
           <div className="rounded border border-border bg-surface-alt px-3 py-2.5">
             {config == null ? (
               <p className="m-0 text-sm text-text-muted">—</p>
