@@ -39,6 +39,50 @@ src/
     └── tailwind.css    # Tailwind entry + @theme design tokens
 ```
 
+## Live data and caches
+
+The UI does **not** own the backend in-memory stores (`active_trades_cache`,
+blotter `valuation_cache`, `health_cache`, market-data snapshot). Those live in
+the Python services; see `backend/README.md` §8.
+
+What the frontend does keep locally:
+
+| View / module | What is cached | Notes |
+| --- | --- | --- |
+| **Blotter** (`useBlotterLiveValuations`) | Latest SSE valuation per `trade_id` in React state | Subscribes to pricing `/valuation-stream` (same stream blotter-service also consumes). Initial rows still come from blotter REST, which already attaches `latest_valuation` from the server cache. |
+| **Pricing** (`usePricingValuationStream`) | Live valuation map keyed by trade | Same `/valuation-stream`; coalesced so the table is not redrawn per raw frame. |
+| **Market Data** (`useMarketDataStream`) | Coalesced tick batches | Subscribes to market-data `/stream`. |
+| **Books** (`pnlByBookId`) | Last fetched PnL / alpha / beta per book | Filled when a book is selected (blotter books + pricing `/book-metrics`). On fetch error the previous map is kept. |
+| **SSE hub** (`workers/sharedSseHub.ts`) | Shared `EventSource` per URL | Not a data cache — tabs share one connection so Market Data, Blotter, and Pricing do not open duplicate streams. |
+
+Trade Generation config is **not** polled. The control panel loads `GET /config`
+on mount / manual refresh and applies `PUT /config` from the response. Worker
+status (`is_running`, `total_generated`) is polled every 2s from `GET /status`.
+
+### TODO — snapshot / SSE catch-up (gap-fill)
+
+Views load REST **first**, then subscribe to SSE (`streamEnabled` after
+`loading` clears). The SharedWorker fans out **future** frames only — it is
+not an event buffer and does not replay. Snapshot responses have no
+monotonic `version` / watermark used to filter the stream (Market Data
+`event_id` exists on ticks but is not used as a cutoff). Merge is
+last-write-wins by key (`instrumentKey` / `trade_id`).
+
+Ticks that happen in the HTTP round-trip between snapshot serialization and
+`subscribe` can be missed (sparkline history, per-tab KPI, blotter patch of
+the loaded page). Last-value table cells usually self-heal on the next tick.
+
+Intended fix (backend + frontend):
+
+1. Subscribe to SSE first; queue incoming frames.
+2. Fetch snapshot with a monotonic `version` (or `event_id` watermark).
+3. Drop queued events with `version <= snapshot.version`; apply the rest in
+   order.
+4. Switch to live: every later frame goes straight into view state.
+
+Needs the same version field on **both** the snapshot payload and each SSE
+frame. Wall-clock timestamps are not a substitute.
+
 ## Design tokens
 
 All design tokens live in [`src/styles/tailwind.css`](src/styles/tailwind.css) inside the `@theme` block. They generate Tailwind utilities such as `bg-surface`, `text-text-muted`, `border-border`, `text-positive`.
