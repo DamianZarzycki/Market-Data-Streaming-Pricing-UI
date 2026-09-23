@@ -1,6 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { useMarketDataStream, type MarketDataBatch } from "@/hooks/useMarketDataStream";
+import {
+  useMarketDataStream,
+  type MarketDataBatch,
+  type MarketDataSource,
+} from "@/hooks/useMarketDataStream";
 import { appendPriceHistoryBatch } from "@/services/marketDataMappers";
 import type { MarketDataClass, PricePoint } from "@/services/marketDataTypes";
 import { registerWorkerRole } from "@/services/sharedWorkerRole";
@@ -19,6 +23,8 @@ export function MarketChartPopout() {
   const instrumentKey = params.get("instrument") ?? "";
   const currency = params.get("currency") || null;
   const dataClass = (params.get("dataClass") || null) as MarketDataClass | null;
+  const source: MarketDataSource =
+    params.get("source") === "provider" ? "provider" : "simulator";
 
   const [points, setPoints] = useState<PricePoint[]>([]);
 
@@ -74,7 +80,7 @@ export function MarketChartPopout() {
     [instrumentKey],
   );
 
-  useMarketDataStream(handleBatch, Boolean(instrumentKey));
+  useMarketDataStream(handleBatch, Boolean(instrumentKey), source);
 
   const last = points[points.length - 1];
   const lastPrice = useMemo(

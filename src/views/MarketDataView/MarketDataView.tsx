@@ -7,6 +7,7 @@ import { WorkspaceLayout } from "@/components/layout/WorkspaceLayout";
 import {
   useMarketDataStream,
   type MarketDataBatch,
+  type MarketDataSource,
 } from "@/hooks/useMarketDataStream";
 import { useDensity } from "@/layout/DensityContext";
 import {
@@ -19,8 +20,12 @@ import {
   appendPriceHistoryBatch,
   liveStatusFor,
   mergeTickRows,
+  PROVIDER_QUOTE_STALE_MS,
+  STALE_MS,
 } from "@/services/marketDataMappers";
 import { fetchMarketDataSnapshot } from "@/services/marketDataService";
+import { fetchProviderQuoteSnapshot } from "@/services/providerQuotesService";
+import { fetchTradeGenerationConfig } from "@/services/tradeGenerationService";
 import type { MarketTickRow, PricePoint } from "@/services/marketDataTypes";
 import { MarketDataDrawer } from "@/views/MarketDataView/MarketDataDrawer";
 import {
@@ -64,6 +69,8 @@ export function MarketDataView() {
   );
   useCompactLayout({ setFiltersCollapsed, setDrawerCollapsed });
   const [nowMs, setNowMs] = useState(() => Date.now());
+  const [source, setSource] = useState<MarketDataSource>("simulator");
+  const [sourceReady, setSourceReady] = useState(false);
 
   useEffect(() => {
     const id = window.setInterval(() => setNowMs(Date.now()), 1000);
@@ -72,16 +79,37 @@ export function MarketDataView() {
     };
   }, []);
 
-  const seedFromSnapshot = useCallback(async () => {
+  useEffect(() => {
+    let cancelled = false;
+    void fetchTradeGenerationConfig()
+      .then((config) => {
+        if (!cancelled) {
+          setSource(config.use_provider_data ? "provider" : "simulator");
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setSource("simulator");
+      })
+      .finally(() => {
+        if (!cancelled) setSourceReady(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const seedFromSnapshot = useCallback(async (nextSource: MarketDataSource) => {
     setLoading(true);
     setError(null);
     try {
-      const rows = await fetchMarketDataSnapshot();
-      setTicks((current) => mergeTickRows(current, rows));
-      setPriceHistory((current) => appendPriceHistoryBatch(current, rows));
-      if (rows.length > 0) {
-        setLastUpdate(rows[0].timestamp);
-      }
+      const rows =
+        nextSource === "provider"
+          ? await fetchProviderQuoteSnapshot()
+          : await fetchMarketDataSnapshot();
+      setTicks(rows);
+      setPriceHistory(appendPriceHistoryBatch(new Map(), rows));
+      setTicksReceived(0);
+      setLastUpdate(rows[0]?.timestamp ?? null);
     } catch (err) {
       const message =
         err instanceof ApiError
@@ -96,8 +124,13 @@ export function MarketDataView() {
   }, []);
 
   useEffect(() => {
-    void seedFromSnapshot();
-  }, [seedFromSnapshot]);
+    if (!sourceReady) return;
+    setTicks([]);
+    setPriceHistory(new Map());
+    setTicksReceived(0);
+    setSelectedInstrumentKey(null);
+    void seedFromSnapshot(source);
+  }, [source, sourceReady, seedFromSnapshot]);
 
   const handleBatch = useCallback((batch: MarketDataBatch) => {
     if (batch.streamReceivedCount != null) {
@@ -114,8 +147,9 @@ export function MarketDataView() {
     setError(null);
   }, []);
 
-  const streamEnabled = !loading || ticks.length > 0;
-  const streamStatus = useMarketDataStream(handleBatch, streamEnabled);
+  const streamEnabled = sourceReady && (!loading || ticks.length > 0);
+  const streamStatus = useMarketDataStream(handleBatch, streamEnabled, source);
+  const staleMs = source === "provider" ? PROVIDER_QUOTE_STALE_MS : STALE_MS;
 
   const filteredTicks = useMemo(() => {
     const query = symbolQuery.trim().toLowerCase();
@@ -133,8 +167,8 @@ export function MarketDataView() {
   const sortedTicks = useMemo(() => {
     if (!sort) return filteredTicks;
     // Status ranks depend on wall-clock age; other keys ignore nowMs.
-    return sortTickRows(filteredTicks, sort, nowMs);
-  }, [filteredTicks, sort, nowMs]);
+    return sortTickRows(filteredTicks, sort, nowMs, staleMs);
+  }, [filteredTicks, sort, nowMs, staleMs]);
 
   const visibleTicks = useMemo(
     () => sortedTicks.slice(0, rowLimit),
@@ -158,7 +192,7 @@ export function MarketDataView() {
   }, [priceHistory, selectedInstrumentKey]);
 
   const selectedStatus = selectedTick
-    ? liveStatusFor(selectedTick.receivedAt, nowMs)
+    ? liveStatusFor(selectedTick.receivedAt, nowMs, staleMs)
     : null;
 
   const handleClearFilters = useCallback(() => {
@@ -190,12 +224,16 @@ export function MarketDataView() {
         <>
           <PanelHeader
             title="Market Data"
-            description="Live ticks via market-data SSE stream"
+            description={
+              source === "provider"
+                ? "Provider quotes via market-data-service-integration"
+                : "Simulated ticks via market-data-service"
+            }
             actions={
               <>
                 <Button
                   variant="secondary"
-                  onClick={() => void seedFromSnapshot()}
+                  onClick={() => void seedFromSnapshot(source)}
                   disabled={loading}
                 >
                   {loading ? "Loading…" : "Refresh"}
@@ -213,7 +251,7 @@ export function MarketDataView() {
           {error ? (
             <InlineAlert
               message={error}
-              onRetry={() => void seedFromSnapshot()}
+              onRetry={() => void seedFromSnapshot(source)}
             />
           ) : null}
 
@@ -234,12 +272,15 @@ export function MarketDataView() {
                 ticks={visibleTicks}
                 selectedInstrumentKey={selectedInstrumentKey}
                 nowMs={nowMs}
+                staleMs={staleMs}
                 sort={sort}
                 onSortChange={handleSortChange}
                 onSelectTick={setSelectedInstrumentKey}
                 emptyMessage={
                   ticks.length === 0
-                    ? "Waiting for market-data ticks…"
+                    ? source === "provider"
+                      ? "Waiting for provider quotes…"
+                      : "Waiting for simulator ticks…"
                     : "No ticks match the current filters."
                 }
               />
@@ -252,6 +293,7 @@ export function MarketDataView() {
           tick={selectedTick}
           status={selectedStatus}
           priceHistory={selectedHistory}
+          source={source}
           collapsed={drawerCollapsed}
           onToggleCollapse={() => setDrawerCollapsed((value) => !value)}
         />

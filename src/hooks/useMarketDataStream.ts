@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import {
   appendPriceHistoryBatch,
+  mapProviderQuote,
   mapTickDto,
   mergeTickRows,
 } from "@/services/marketDataMappers";
@@ -9,6 +10,7 @@ import type {
   MarketTickRow,
   PricePoint,
 } from "@/services/marketDataTypes";
+import type { ProviderQuoteEvent } from "@/services/providerQuotesTypes";
 import { endpoints } from "@/services/endpoints";
 import { openSharedSseStream } from "@/services/sharedSseClient";
 import type { SseStatus } from "@/services/sseClient";
@@ -22,13 +24,20 @@ export interface MarketDataBatch {
   streamReceivedCount?: number;
 }
 
+export type MarketDataSource = "simulator" | "provider";
+
 /**
- * Subscribe to market-data-service /stream and coalesce ticks so
+ * Subscribe to the selected market stream and coalesce ticks so
  * high-frequency updates do not re-render on every SSE frame.
+ *
+ * `simulator` is market-data-service `/stream` (default message events).
+ * `provider` is market-data-service-integration `/market-data/stream`
+ * (`quote` events, about every 30s).
  */
 export function useMarketDataStream(
   onBatch: (batch: MarketDataBatch) => void,
   enabled = true,
+  source: MarketDataSource = "simulator",
 ): SseStatus {
   const [status, setStatus] = useState<SseStatus>("CONNECTING");
   const onBatchRef = useRef(onBatch);
@@ -61,9 +70,11 @@ export function useMarketDataStream(
 
     setStatus("CONNECTING");
 
-    const dispose = openSharedSseStream<MarketDataTickDto>(
-      endpoints.marketData.stream,
+    const provider = source === "provider";
+    const dispose = openSharedSseStream<MarketDataTickDto | ProviderQuoteEvent>(
+      provider ? endpoints.providerQuotes.stream : endpoints.marketData.stream,
       {
+        eventName: provider ? "quote" : undefined,
         onStatusChange: setStatus,
         onReceivedCount: (count) => {
           const seeded = streamReceivedCount == null;
@@ -78,7 +89,11 @@ export function useMarketDataStream(
         },
         onMessage: (data) => {
           if (!data || typeof data !== "object") return;
-          pending.push(mapTickDto(data));
+          pending.push(
+            provider
+              ? mapProviderQuote(data as ProviderQuoteEvent)
+              : mapTickDto(data as MarketDataTickDto),
+          );
           scheduleFlush();
         },
       },
@@ -88,7 +103,7 @@ export function useMarketDataStream(
       if (flushTimer != null) clearTimeout(flushTimer);
       dispose();
     };
-  }, [enabled]);
+  }, [enabled, source]);
 
   return status;
 }

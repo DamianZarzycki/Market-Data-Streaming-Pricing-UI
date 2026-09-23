@@ -36,6 +36,7 @@ export function openMarketChartWindow(
   url.searchParams.set("instrument", meta.instrumentKey);
   if (meta.currency) url.searchParams.set("currency", meta.currency);
   if (meta.dataClass) url.searchParams.set("dataClass", meta.dataClass);
+  if (meta.source) url.searchParams.set("source", meta.source);
 
   const offset = (cascadeIndex % MAX_CHART_POPOUTS) * CASCADE_STEP;
   cascadeIndex += 1;

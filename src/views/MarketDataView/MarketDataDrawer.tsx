@@ -17,6 +17,7 @@ interface MarketDataDrawerProps {
   tick: MarketTickRow | null;
   status: LiveStatus | null;
   priceHistory: PricePoint[];
+  source?: "simulator" | "provider";
   collapsed: boolean;
   onToggleCollapse: () => void;
 }
@@ -25,6 +26,7 @@ export function MarketDataDrawer({
   tick,
   status,
   priceHistory,
+  source = "simulator",
   collapsed,
   onToggleCollapse,
 }: MarketDataDrawerProps) {
@@ -37,6 +39,7 @@ export function MarketDataDrawer({
         instrumentKey: tick.instrumentKey,
         currency: tick.currency,
         dataClass: tick.dataClass,
+        source,
       },
       priceHistory,
     );

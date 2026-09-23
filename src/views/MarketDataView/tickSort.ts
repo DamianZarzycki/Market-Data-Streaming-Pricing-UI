@@ -1,11 +1,12 @@
 import type { LiveStatus } from "@/domain/types";
-import { liveStatusFor } from "@/services/marketDataMappers";
+import { liveStatusFor, STALE_MS } from "@/services/marketDataMappers";
 import type { MarketTickRow } from "@/services/marketDataTypes";
 
 export type TickSortKey =
   | "time"
   | "symbol"
   | "dataClass"
+  | "description"
   | "price"
   | "status";
 
@@ -43,6 +44,7 @@ export function compareTickRows(
   b: MarketTickRow,
   sort: TickSortState,
   nowMs: number,
+  staleMs = STALE_MS,
 ): number {
   const { key, dir } = sort;
 
@@ -55,11 +57,13 @@ export function compareTickRows(
       return compareString(a.symbol, b.symbol, dir);
     case "dataClass":
       return compareString(a.dataClass, b.dataClass, dir);
+    case "description":
+      return compareString(a.description ?? "", b.description ?? "", dir);
     case "price":
       return compareNullableNumber(a.price, b.price, dir);
     case "status": {
-      const rankA = STATUS_RANK[liveStatusFor(a.receivedAt, nowMs)];
-      const rankB = STATUS_RANK[liveStatusFor(b.receivedAt, nowMs)];
+      const rankA = STATUS_RANK[liveStatusFor(a.receivedAt, nowMs, staleMs)];
+      const rankB = STATUS_RANK[liveStatusFor(b.receivedAt, nowMs, staleMs)];
       return dir === "asc" ? rankA - rankB : rankB - rankA;
     }
     default:
@@ -71,9 +75,10 @@ export function sortTickRows(
   rows: MarketTickRow[],
   sort: TickSortState | null,
   nowMs: number,
+  staleMs = STALE_MS,
 ): MarketTickRow[] {
   if (!sort) return rows;
-  return [...rows].sort((a, b) => compareTickRows(a, b, sort, nowMs));
+  return [...rows].sort((a, b) => compareTickRows(a, b, sort, nowMs, staleMs));
 }
 
 /** Cycle: unset → asc → desc → unset. Switching column starts at asc. */

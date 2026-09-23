@@ -2,7 +2,7 @@ import { memo, type ReactNode } from "react";
 import { StatusPill } from "@/components/ui/StatusPill";
 import type { LiveStatus } from "@/domain/types";
 import { useDensity } from "@/layout/DensityContext";
-import { liveStatusFor } from "@/services/marketDataMappers";
+import { liveStatusFor, STALE_MS } from "@/services/marketDataMappers";
 import type { MarketTickRow } from "@/services/marketDataTypes";
 import { cn } from "@/lib/cn";
 import {
@@ -18,6 +18,7 @@ interface TicksTableProps {
   ticks: MarketTickRow[];
   selectedInstrumentKey: string | null;
   nowMs: number;
+  staleMs?: number;
   sort: TickSortState | null;
   onSortChange: (key: TickSortKey) => void;
   onSelectTick: (instrumentKey: string) => void;
@@ -34,6 +35,7 @@ const COLUMNS: {
   { key: "time", label: "Time", compact: false },
   { key: "symbol", label: "Symbol" },
   { key: "dataClass", label: "Data Class", compact: false },
+  { key: "description", label: "Description" },
   { key: "price", label: "Price / Value", align: "right" },
   { key: "status", label: "Status" },
 ];
@@ -42,6 +44,7 @@ export const TicksTable = memo(function TicksTable({
   ticks,
   selectedInstrumentKey,
   nowMs,
+  staleMs = STALE_MS,
   sort,
   onSortChange,
   onSelectTick,
@@ -91,7 +94,7 @@ export const TicksTable = memo(function TicksTable({
             key={tick.instrumentKey}
             tick={tick}
             selected={tick.instrumentKey === selectedInstrumentKey}
-            status={liveStatusFor(tick.receivedAt, nowMs)}
+            status={liveStatusFor(tick.receivedAt, nowMs, staleMs)}
             cellPad={cellPad}
             isCompact={isCompact}
             onSelectTick={onSelectTick}
@@ -209,6 +212,12 @@ const TickRow = memo(function TickRow({
       ) : null}
       <Td className={cn(cellPad, "font-semibold")}>{tick.symbol}</Td>
       {!isCompact ? <Td className={cellPad}>{tick.dataClass}</Td> : null}
+      <Td
+        className={cn(cellPad, "max-w-[18rem] truncate text-text-muted")}
+        title={tick.description ?? undefined}
+      >
+        {tick.description ?? "—"}
+      </Td>
       <Td className={cn(cellPad, "text-right font-mono tabular-nums")}>
         {formatPrice(tick.price, tick.currency, 4, tick.dataClass)}
       </Td>
@@ -222,9 +231,15 @@ const TickRow = memo(function TickRow({
 function Td({
   children,
   className,
+  title,
 }: {
   children: ReactNode;
   className?: string;
+  title?: string;
 }) {
-  return <td className={cn("align-middle", className)}>{children}</td>;
+  return (
+    <td className={cn("align-middle", className)} title={title}>
+      {children}
+    </td>
+  );
 }

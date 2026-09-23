@@ -33,4 +33,5 @@ export interface ChartPopoutMeta {
   instrumentKey: string;
   currency?: string | null;
   dataClass?: MarketDataClass | null;
+  source?: "simulator" | "provider";
 }
