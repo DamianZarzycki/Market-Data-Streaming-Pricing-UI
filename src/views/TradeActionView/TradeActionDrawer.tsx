@@ -1,11 +1,19 @@
 import { StatusPill } from "@/components/ui/StatusPill";
 import { SideDrawer } from "@/components/layout/SideDrawer";
-import type { TradeActionStatus } from "@/services/tradeActionTypes";
-import { formatClock } from "@/views/TradeActionView/formatters";
+import type {
+  TradeActionEvent,
+  TradeActionStatus,
+} from "@/services/tradeActionTypes";
+import {
+  formatClock,
+  formatLatency,
+} from "@/views/TradeActionView/formatters";
+import { ResultPill } from "@/views/TradeActionView/ResultPill";
 
 interface TradeActionDrawerProps {
   status: TradeActionStatus | null;
   serviceUp: boolean | null;
+  selectedAction: TradeActionEvent | null;
   collapsed: boolean;
   onToggleCollapse: () => void;
 }
@@ -43,6 +51,7 @@ const API_MAP = [
 export function TradeActionDrawer({
   status,
   serviceUp,
+  selectedAction,
   collapsed,
   onToggleCollapse,
 }: TradeActionDrawerProps) {
@@ -63,6 +72,9 @@ export function TradeActionDrawer({
       trailing={<StatusPill tone={tone}>{label}</StatusPill>}
     >
       <div className="flex flex-col gap-3.5 px-4 py-3.5">
+        {selectedAction ? (
+          <SelectedActionDetails action={selectedAction} />
+        ) : null}
         <section aria-label="Resilience signals">
           <h3 className="mb-2 text-sm font-semibold">Resilience signals</h3>
           <ul className="m-0 flex list-none flex-col gap-1.5 p-0">
@@ -127,5 +139,51 @@ export function TradeActionDrawer({
         </section>
       </div>
     </SideDrawer>
+  );
+}
+
+function SelectedActionDetails({ action }: { action: TradeActionEvent }) {
+  return (
+    <section aria-label="Selected action">
+      <h3 className="mb-2 text-sm font-semibold">Selected action</h3>
+      <dl className="m-0 flex flex-col gap-2 rounded border border-border bg-surface-alt px-3 py-2.5 text-sm">
+        <Detail label="Time" value={action.time} mono />
+        <Detail label="Request ID" value={action.client_request_id} mono />
+        <Detail label="Action" value={action.action_type || "—"} />
+        <Detail label="Symbol" value={action.symbol || "—"} />
+        <div className="flex items-start justify-between gap-3">
+          <dt className="text-text-muted">Result</dt>
+          <dd className="m-0">
+            <ResultPill result={action.result} />
+          </dd>
+        </div>
+        <Detail label="Latency" value={formatLatency(action.latency_ms)} mono />
+        <div className="flex flex-col gap-1">
+          <dt className="text-text-muted">Note</dt>
+          <dd className="m-0 whitespace-pre-wrap break-words">
+            {action.note || "—"}
+          </dd>
+        </div>
+      </dl>
+    </section>
+  );
+}
+
+function Detail({
+  label,
+  value,
+  mono = false,
+}: {
+  label: string;
+  value: string;
+  mono?: boolean;
+}) {
+  return (
+    <div className="flex items-start justify-between gap-3">
+      <dt className="shrink-0 text-text-muted">{label}</dt>
+      <dd className={`m-0 min-w-0 break-all text-right ${mono ? "font-mono" : ""}`}>
+        {value}
+      </dd>
+    </div>
   );
 }

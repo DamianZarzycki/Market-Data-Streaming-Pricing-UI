@@ -15,7 +15,10 @@ import {
   fetchTradeActionStatus,
 } from "@/services/tradeActionService";
 import type { TradeActionStatus } from "@/services/tradeActionTypes";
-import { RecentActionsTable } from "@/views/TradeActionView/RecentActionsTable";
+import {
+  actionRowKey,
+  RecentActionsTable,
+} from "@/views/TradeActionView/RecentActionsTable";
 import { TradeActionDrawer } from "@/views/TradeActionView/TradeActionDrawer";
 import { TradeActionKpiStrip } from "@/views/TradeActionView/TradeActionKpiStrip";
 import { TradeActionQueueBar } from "@/views/TradeActionView/TradeActionQueueBar";
@@ -37,6 +40,9 @@ export function TradeActionView() {
   const [loading, setLoading] = useState(true);
   const [drawerCollapsed, setDrawerCollapsed] = useState(() =>
     collapsedForDensity(density),
+  );
+  const [selectedActionKey, setSelectedActionKey] = useState<string | null>(
+    null,
   );
   useCompactLayout({ setDrawerCollapsed });
 
@@ -71,6 +77,12 @@ export function TradeActionView() {
 
   const pipeline = status?.pipeline_status ?? null;
   const pressure = pipeline === "PRESSURE";
+  const actions = status?.recent_actions ?? [];
+  const selectedAction = selectedActionKey
+    ? (actions.find(
+        (action, index) => actionRowKey(action, index) === selectedActionKey,
+      ) ?? null)
+    : null;
 
   return (
     <WorkspaceLayout
@@ -133,7 +145,16 @@ export function TradeActionView() {
                 Loading trade-action status…
               </div>
             ) : (
-              <RecentActionsTable actions={status?.recent_actions ?? []} />
+              <RecentActionsTable
+                actions={actions}
+                selectedKey={selectedAction ? selectedActionKey : null}
+                onSelect={(key) => {
+                  setSelectedActionKey((current) =>
+                    current === key ? null : key,
+                  );
+                  setDrawerCollapsed(false);
+                }}
+              />
             )}
           </div>
         </>
@@ -142,6 +163,7 @@ export function TradeActionView() {
         <TradeActionDrawer
           status={status}
           serviceUp={serviceUp}
+          selectedAction={selectedAction}
           collapsed={drawerCollapsed}
           onToggleCollapse={() => setDrawerCollapsed((value) => !value)}
         />

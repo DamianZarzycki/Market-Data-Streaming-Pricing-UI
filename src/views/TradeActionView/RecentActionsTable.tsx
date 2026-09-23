@@ -11,11 +11,22 @@ import { ResultPill } from "@/views/TradeActionView/ResultPill";
 
 interface RecentActionsTableProps {
   actions: TradeActionEvent[];
+  selectedKey?: string | null;
+  onSelect?: (key: string) => void;
   emptyMessage?: string;
+}
+
+export function actionRowKey(action: TradeActionEvent, index: number): string {
+  if (action.client_request_id && action.client_request_id !== "—") {
+    return action.client_request_id;
+  }
+  return `row-${index}-${action.time}`;
 }
 
 export function RecentActionsTable({
   actions,
+  selectedKey = null,
+  onSelect,
   emptyMessage = "No recent actions yet. POST /trade-actions to see activity.",
 }: RecentActionsTableProps) {
   const density = useDensity();
@@ -49,10 +60,26 @@ export function RecentActionsTable({
           </tr>
         </thead>
         <tbody>
-          {actions.map((action, index) => (
+          {actions.map((action, index) => {
+            const rowKey = actionRowKey(action, index);
+            const selected = selectedKey === rowKey;
+            return (
             <tr
-              key={`${action.client_request_id}-${action.time}-${index}`}
-              className={cn(index % 2 === 1 && "bg-surface-alt/60")}
+              key={rowKey}
+              tabIndex={onSelect ? 0 : undefined}
+              aria-selected={selected}
+              onClick={() => onSelect?.(rowKey)}
+              onKeyDown={(event) => {
+                if (!onSelect) return;
+                if (event.key === "Enter" || event.key === " ") {
+                  event.preventDefault();
+                  onSelect(rowKey);
+                }
+              }}
+              className={cn(
+                onSelect && "cursor-pointer hover:bg-surface-alt",
+                selected ? "bg-accent/10" : index % 2 === 1 && "bg-surface-alt/60",
+              )}
             >
               <Td className={cn(cellPad, "font-mono tabular-nums")}>
                 {formatClock(action.time)}
@@ -92,7 +119,8 @@ export function RecentActionsTable({
                 </Td>
               ) : null}
             </tr>
-          ))}
+            );
+          })}
         </tbody>
       </table>
     </div>
