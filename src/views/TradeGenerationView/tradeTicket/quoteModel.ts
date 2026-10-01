@@ -129,6 +129,24 @@ export function decimalRateToPercentInput(decimal: number): string {
   return String(Math.round(decimal * 100 * 1_000_000) / 1_000_000);
 }
 
+/** Keep a single dot as the decimal separator. A typed comma becomes a dot. */
+export function normalizeDotDecimal(value: string): string {
+  const cleaned = value.replace(/,/g, ".").replace(/[^\d.]/g, "");
+  const dot = cleaned.indexOf(".");
+  if (dot === -1) return cleaned;
+  return `${cleaned.slice(0, dot + 1)}${cleaned.slice(dot + 1).replace(/\./g, "")}`;
+}
+
+/** 1007001.5 -> "1007001.50". No thousands separator, so the decimal mark stays a dot. */
+export function formatPlainAmount(
+  value: number,
+  currency?: string | null,
+  digits = 2,
+): string {
+  const amount = value.toFixed(digits);
+  return currency ? `${amount} ${currency}` : amount;
+}
+
 export function providerLabel(
   providers: { key: string; label: string }[],
   key: string | null,

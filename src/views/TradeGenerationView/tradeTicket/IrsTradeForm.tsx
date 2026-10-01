@@ -4,7 +4,6 @@ import { Field, Select } from "@/components/ui/Field";
 import { StatusPill } from "@/components/ui/StatusPill";
 import { cn } from "@/lib/cn";
 import type { IrsDirection, IrsOpenTradePayload } from "@/services/tradeActionTypes";
-import { formatPrice } from "@/views/MarketDataView/formatters";
 import { QuoteComparisonTable } from "@/views/TradeGenerationView/tradeTicket/QuoteComparisonTable";
 import { SummaryBar } from "@/views/TradeGenerationView/tradeTicket/SummaryBar";
 import type { TradeFormProps, TradeTicketDraft } from "@/views/TradeGenerationView/tradeTicket/types";
@@ -12,8 +11,12 @@ import { useQuoteSelection } from "@/views/TradeGenerationView/tradeTicket/useQu
 import { useTicketQuotes } from "@/views/TradeGenerationView/tradeTicket/useTicketQuotes";
 import {
   decimalRateToPercentInput,
+  formatPlainAmount,
   irsCurrency,
+  irsMaturityYears,
   newTicketRequestId,
+  normalizeDotDecimal,
+  referencePriceOf,
   ticketInputClass,
   toReferenceTimestamp,
   YIELD_PROVIDERS,
@@ -54,7 +57,6 @@ export function IrsTradeForm({
   const [notional, setNotional] = useState("1000000");
   const [fixedRate, setFixedRate] = useState("");
   const [fixedRateEdited, setFixedRateEdited] = useState(false);
-  const [maturity, setMaturity] = useState("0");
   const [payments, setPayments] = useState<(typeof PAYMENTS)[number]>("1");
   const [direction, setDirection] = useState<IrsDirection>(
     "RECEIVE_FIXED_PAY_FLOAT",
@@ -65,7 +67,6 @@ export function IrsTradeForm({
   }, [symbols]);
 
   useEffect(() => {
-    setMaturity("0");
     setFixedRate("");
     setFixedRateEdited(false);
   }, [symbol]);
@@ -87,14 +88,22 @@ export function IrsTradeForm({
   useEffect(() => {
     if (fixedRateEdited) return;
     if (selection.referencePrice == null) return;
+    if (selection.selectedQuote?.symbol !== symbol) return;
     setFixedRate(decimalRateToPercentInput(selection.referencePrice));
-  }, [fixedRateEdited, selection.referencePrice, symbol]);
+  }, [
+    fixedRateEdited,
+    selection.referencePrice,
+    selection.selectedQuote,
+    symbol,
+  ]);
 
   const currency = irsCurrency(symbol) ?? selection.selectedQuote?.currency ?? "";
+  const maturityYears = irsMaturityYears(symbol);
+  const maturityLabel = maturityYears == null ? "" : String(maturityYears);
   const notionalValue = Number(notional);
   const fixedRatePercent = Number(fixedRate);
   const fixedRateValue = fixedRatePercent / 100;
-  const maturityValue = Number(maturity);
+  const maturityValue = maturityYears ?? Number.NaN;
   const paymentsValue = Number(payments);
 
   const draft = useMemo<TradeTicketDraft>(() => {
@@ -191,26 +200,24 @@ export function IrsTradeForm({
         </Field>
         <Field label="Notional">
           <TicketSuffixedInput
-            type="number"
-            lang="en"
-            min={1}
-            step={1000}
+            type="text"
+            inputMode="decimal"
             value={notional}
             suffix={currency || "—"}
-            onChange={(event) => setNotional(event.target.value)}
+            onChange={(event) =>
+              setNotional(normalizeDotDecimal(event.target.value))
+            }
           />
         </Field>
         <Field label="Fixed rate">
           <TicketSuffixedInput
-            type="number"
-            lang="en"
-            min={0}
-            step={0.01}
+            type="text"
+            inputMode="decimal"
             value={fixedRate}
             suffix="%"
             onChange={(event) => {
               setFixedRateEdited(true);
-              setFixedRate(event.target.value);
+              setFixedRate(normalizeDotDecimal(event.target.value));
             }}
           />
         </Field>
@@ -219,13 +226,12 @@ export function IrsTradeForm({
       <div className="grid gap-3 sm:grid-cols-3">
         <Field label="Maturity (years)">
           <input
-            type="number"
-            lang="en"
-            min={0}
-            step={0.5}
-            value={maturity}
-            onChange={(event) => setMaturity(event.target.value)}
-            className={ticketInputClass}
+            type="text"
+            readOnly
+            aria-readonly="true"
+            value={maturityLabel}
+            title="Taken from the symbol tenor"
+            className={cn(ticketInputClass, "cursor-not-allowed")}
           />
         </Field>
         <Field label="Payments / year">
@@ -279,7 +285,7 @@ export function IrsTradeForm({
         label="Notional"
         value={
           Number.isFinite(notionalValue) && notionalValue > 0
-            ? formatPrice(notionalValue, currency, 2)
+            ? formatPlainAmount(notionalValue, currency, 2)
             : null
         }
         empty="enter a notional"
@@ -305,7 +311,16 @@ export function IrsTradeForm({
           quoteByProvider={selection.quoteByProvider}
           statusOf={selection.statusOf}
           selectedProvider={selection.selectedProvider}
-          onSelect={selection.setSelectedProvider}
+          onSelect={(provider) => {
+            selection.setSelectedProvider(provider);
+            const price = referencePriceOf(
+              selection.quoteByProvider.get(provider) ?? null,
+            );
+            setFixedRateEdited(false);
+            if (price != null) {
+              setFixedRate(decimalRateToPercentInput(price));
+            }
+          }}
           snapshotLoading={snapshotLoading}
           nowMs={nowMs}
           emptyMessage={
