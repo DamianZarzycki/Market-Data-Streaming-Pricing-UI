@@ -38,6 +38,7 @@ export function useMarketDataStream(
   onBatch: (batch: MarketDataBatch) => void,
   enabled = true,
   source: MarketDataSource = "simulator",
+  restartToken = 0,
 ): SseStatus {
   const [status, setStatus] = useState<SseStatus>("CONNECTING");
   const onBatchRef = useRef(onBatch);
@@ -103,7 +104,7 @@ export function useMarketDataStream(
       if (flushTimer != null) clearTimeout(flushTimer);
       dispose();
     };
-  }, [enabled, source]);
+  }, [enabled, source, restartToken]);
 
   return status;
 }

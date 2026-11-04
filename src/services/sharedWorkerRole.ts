@@ -1,8 +1,7 @@
 import { startAppTabPresence, watchAppTabPresence } from "@/services/appPresence";
+import { openSseWorker } from "@/services/sharedSseClient";
 import type { SharedSseOutbound, WorkerRole } from "@/workers/sharedSseProtocol";
 
-const WORKER_URL = new URL("../workers/shared-worker.ts", import.meta.url);
-const WORKER_NAME = "trading-sse";
 const HEARTBEAT_MS = 2_000;
 
 let appPresenceCount = 0;
@@ -68,10 +67,7 @@ function connectRole(
   }
 
   try {
-    const worker = new SharedWorker(WORKER_URL, {
-      type: "module",
-      name: WORKER_NAME,
-    });
+    const worker = openSseWorker();
     const port = worker.port;
     let closed = false;
 

@@ -71,6 +71,7 @@ export function MarketDataView() {
   const [nowMs, setNowMs] = useState(() => Date.now());
   const [source, setSource] = useState<MarketDataSource>("simulator");
   const [sourceReady, setSourceReady] = useState(false);
+  const [streamRestart, setStreamRestart] = useState(0);
 
   useEffect(() => {
     const id = window.setInterval(() => setNowMs(Date.now()), 1000);
@@ -148,7 +149,12 @@ export function MarketDataView() {
   }, []);
 
   const streamEnabled = sourceReady && (!loading || ticks.length > 0);
-  const streamStatus = useMarketDataStream(handleBatch, streamEnabled, source);
+  const streamStatus = useMarketDataStream(
+    handleBatch,
+    streamEnabled,
+    source,
+    streamRestart,
+  );
   const staleMs = source === "provider" ? PROVIDER_QUOTE_STALE_MS : STALE_MS;
 
   const filteredTicks = useMemo(() => {
@@ -233,7 +239,10 @@ export function MarketDataView() {
               <>
                 <Button
                   variant="secondary"
-                  onClick={() => void seedFromSnapshot(source)}
+                  onClick={() => {
+                    setStreamRestart((value) => value + 1);
+                    void seedFromSnapshot(source);
+                  }}
                   disabled={loading}
                 >
                   {loading ? "Loading…" : "Refresh"}

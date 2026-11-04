@@ -28,9 +28,16 @@ export type SseHubOptions = {
   now?: () => number;
   /** App ports with no heartbeat for this long are treated as closed. */
   staleMs?: number;
+  /**
+   * Delay before opening a new EventSource after the browser fails the
+   * connection for good (non-200 or a non-event-stream response). Native
+   * EventSource does not retry that case.
+   */
+  reconnectMs?: number;
 };
 
 const DEFAULT_STALE_MS = 4_000;
+const DEFAULT_RECONNECT_MS = 1_000;
 
 type NamedListener = (event: Event) => void;
 
@@ -39,6 +46,7 @@ type StreamState = {
   ports: Map<HubPort, string | undefined>;
   namedListeners: Map<string, NamedListener>;
   receivedCount: number;
+  reconnectTimer: ReturnType<typeof setTimeout> | null;
 };
 
 function parseJsonData(event: MessageEvent<string>): unknown | null {
@@ -65,6 +73,7 @@ export function createSseHub(
 ) {
   const now = options.now ?? (() => Date.now());
   const staleMs = options.staleMs ?? DEFAULT_STALE_MS;
+  const reconnectMs = options.reconnectMs ?? DEFAULT_RECONNECT_MS;
   const streams = new Map<string, StreamState>();
   const appPorts = new Set<HubPort>();
   const chartPorts = new Set<HubPort>();
@@ -150,20 +159,20 @@ export function createSseHub(
     }
   }
 
-  function openStream(url: string): StreamState {
-    const source = createEventSource(url);
-    const state: StreamState = {
-      source,
-      ports: new Map(),
-      namedListeners: new Map(),
-      receivedCount: 0,
-    };
+  function clearReconnect(state: StreamState) {
+    if (state.reconnectTimer == null) return;
+    clearTimeout(state.reconnectTimer);
+    state.reconnectTimer = null;
+  }
 
+  function bindSource(state: StreamState, url: string, source: EventSourceLike) {
     source.onopen = () => {
+      if (state.source !== source) return;
       broadcastStatus(state, url, "CONNECTED");
     };
 
     source.onmessage = (event: MessageEvent<string>) => {
+      if (state.source !== source) return;
       const data = parseJsonData(event);
       if (data === null) return;
       noteReceived(state);
@@ -171,12 +180,37 @@ export function createSseHub(
     };
 
     source.onerror = () => {
-      const status =
-        source.readyState === SSE_CLOSED ? "ERROR" : "RECONNECTING";
-      broadcastStatus(state, url, status);
+      if (state.source !== source) return;
+      // A dropped socket stays CONNECTING and the browser retries.
+      // CLOSED means the browser gave up (bad status or content type).
+      broadcastStatus(state, url, "RECONNECTING");
+      if (source.readyState !== SSE_CLOSED) return;
+      if (state.reconnectTimer != null || state.ports.size === 0) return;
+      state.reconnectTimer = setTimeout(() => {
+        state.reconnectTimer = null;
+        if (streams.get(url) !== state || state.ports.size === 0) return;
+        const next = createEventSource(url);
+        state.source = next;
+        bindSource(state, url, next);
+      }, reconnectMs);
     };
 
+    for (const [eventName, listener] of state.namedListeners) {
+      source.addEventListener(eventName, listener);
+    }
+  }
+
+  function openStream(url: string): StreamState {
+    const source = createEventSource(url);
+    const state: StreamState = {
+      source,
+      ports: new Map(),
+      namedListeners: new Map(),
+      receivedCount: 0,
+      reconnectTimer: null,
+    };
     streams.set(url, state);
+    bindSource(state, url, source);
     return state;
   }
 
@@ -212,10 +246,20 @@ export function createSseHub(
     }
   }
 
+  function replaceClosedSource(state: StreamState, url: string) {
+    if (state.source.readyState !== SSE_CLOSED) return;
+    clearReconnect(state);
+    const next = createEventSource(url);
+    state.source = next;
+    bindSource(state, url, next);
+  }
+
   function subscribe(port: HubPort, url: string, eventName?: string) {
     let state = streams.get(url);
     if (!state) {
       state = openStream(url);
+    } else {
+      replaceClosedSource(state, url);
     }
     state.ports.set(port, eventName);
     if (eventName) {
@@ -236,6 +280,7 @@ export function createSseHub(
     state.ports.delete(port);
     dropUnusedNamedListeners(state);
     if (state.ports.size === 0) {
+      clearReconnect(state);
       state.source.close();
       streams.delete(url);
     }

@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { createSseHub, type EventSourceLike, type HubPort } from "./sharedSseHub";
 import type { SharedSseOutbound } from "./sharedSseProtocol";
 
@@ -182,6 +182,64 @@ describe("createSseHub connection sharing", () => {
     );
   });
 
+  it("replaces a closed EventSource when another tab subscribes", () => {
+    const hub = createTestHub();
+    const firstTab = fakePort();
+    hub.subscribe(firstTab, MARKET);
+    const dead = FakeEventSource.instances[0];
+    dead!.readyState = 2;
+
+    const secondTab = fakePort();
+    hub.subscribe(secondTab, MARKET);
+
+    expect(FakeEventSource.instances).toHaveLength(2);
+    expect(secondTab.messages.find((msg) => msg.type === "status")).toMatchObject({
+      type: "status",
+      url: MARKET,
+      status: "CONNECTING",
+    });
+  });
+
+  it("reopens a stream after the browser fails the connection", () => {
+    vi.useFakeTimers();
+    const hub = createTestHub();
+    const tab = fakePort();
+    hub.subscribe(tab, MARKET);
+    const first = FakeEventSource.instances[0];
+    expect(first).toBeDefined();
+    first!.readyState = 2;
+    first!.onerror?.(new Event("error"));
+
+    expect(tab.messages.at(-1)).toMatchObject({
+      type: "status",
+      url: MARKET,
+      status: "RECONNECTING",
+    });
+    expect(FakeEventSource.instances).toHaveLength(1);
+
+    vi.advanceTimersByTime(1_000);
+    expect(FakeEventSource.instances).toHaveLength(2);
+    const next = FakeEventSource.instances[1];
+    next?.open();
+    next?.emitDefault({ symbol: "ACME", last: 12 });
+
+    expect(tab.messages.some((msg) => msg.type === "message")).toBe(true);
+  });
+
+  it("does not reopen after the last tab unsubscribes", () => {
+    vi.useFakeTimers();
+    const hub = createTestHub();
+    const tab = fakePort();
+    hub.subscribe(tab, MARKET);
+    const first = FakeEventSource.instances[0];
+    first!.readyState = 2;
+    first!.onerror?.(new Event("error"));
+    hub.unsubscribe(tab, MARKET);
+
+    vi.advanceTimersByTime(1_000);
+    expect(FakeEventSource.instances).toHaveLength(1);
+  });
+
   it("shares the EventSource frame count with a tab that joins later", () => {
     const hub = createTestHub();
     const tabA = fakePort();
@@ -199,6 +257,10 @@ describe("createSseHub connection sharing", () => {
       receivedCount: 2,
     });
   });
+});
+
+afterEach(() => {
+  vi.useRealTimers();
 });
 
 describe("createSseHub app vs chart roles", () => {
