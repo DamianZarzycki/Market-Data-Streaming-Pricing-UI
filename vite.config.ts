@@ -1,7 +1,12 @@
+import fs from "node:fs";
 import { fileURLToPath, URL } from "node:url";
 import tailwindcss from "@tailwindcss/vite";
 import { defineConfig } from "vitest/config";
 import react from "@vitejs/plugin-react";
+
+// Bind-mounted source on Docker Desktop (VirtioFS) returns errno -35 when Vite
+// prefetches many files at once, and inotify does not see host writes.
+const inDocker = fs.existsSync("/.dockerenv");
 
 const svc = (target: string, prefix: string) => ({
   target,
@@ -23,6 +28,8 @@ export default defineConfig({
   server: {
     host: "0.0.0.0",
     port: 5173,
+    preTransformRequests: !inDocker,
+    watch: inDocker ? { usePolling: true, interval: 300 } : undefined,
     proxy: {
       "/api/market-data": svc("http://market-data-service:8001", "market-data"),
       "/api/pricing": svc("http://pricing-service:8002", "pricing"),
